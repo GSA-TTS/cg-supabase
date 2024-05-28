@@ -6,7 +6,7 @@ A terraform module that manages a Supabase deployment on cloud.gov
 
 Your project probably needs a backend and a DB, and you probably want to avoid writing custom code wherever you can. 
 
-Supabase is a collection of open source components that provide a featureful and secure backend that is customized directly from the schema and content of a Postgres database, and it includes a nice UI for managing all of its features, including schema migration. See [Supabase's documentation](https://supabase.com/docs) for more information.
+[Supabase is a collection of open source components](https://github.com/supabase/supabase?tab=readme-ov-file#how-it-works) that together provide a featureful and secure backend that is customized directly from the schema and content of a Postgres database. It has a nice UI and DX for using all of its features, including schema migration. See [Supabase's documentation](https://supabase.com/docs) for more information.
 
 This module deploys Supabase on cloud.gov, providing a compliance- and production-oriented backend that you can use immediately. 
 
