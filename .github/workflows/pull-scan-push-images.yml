@@ -1,0 +1,57 @@
+---
+    name: Pull images, then scan and push them to GHCR
+    on:
+      workflow_dispatch:
+      schedule:
+        - cron: '0 5 * * 0'
+    
+    jobs:
+      pull-and-scan:
+        runs-on: ubuntu-latest
+        permissions:
+          contents: read
+          packages: write
+        env:
+          GH_REPO: gsa-tts/cg-supabase
+        strategy:
+          fail-fast: false
+          matrix:
+            image:
+              - name: postgrest/postgrest:latest
+                short-name: rest
+              - name: ghcr.io/supabase/storage-api:v1.3.1
+                short-name: storage
+              - name: ghcr.io/supabase/studio:20240527-f428ce5
+                short-name: studio
+    
+        steps:
+          - name: Checkout
+            uses: actions/checkout@v4
+    
+          - name: Set up Docker Buildx
+            id: buildx
+            uses: docker/setup-buildx-action@v3
+    
+          - name: Pull Docker Image
+            run: docker pull ${{ matrix.image.name }}
+    
+          - name: Scan Image
+            run: docker run aquasec/trivy:latest  image --timeout 5m --scanners vuln --exit-code 1 --severity CRITICAL,HIGH  ${{ matrix.image.name }}
+    
+          - name: Tag Image
+            run: |
+              date=$(date +%Y%m%d)
+              docker tag ${{ matrix.image.name }} ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:latest
+              docker tag ${{ matrix.image.name }} ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:scanned
+              docker tag ${{ matrix.image.name }} ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:$date
+    
+          - name: Login to GitHub Container Registry
+            uses: docker/login-action@v3
+            with:
+              registry: ghcr.io
+              username: ${{ github.repository_owner }}
+              password: ${{ secrets.GITHUB_TOKEN }}
+    
+          - name: Push Image
+            run: docker push --all-tags ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}
+    
