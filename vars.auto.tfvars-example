@@ -1,0 +1,5 @@
+cf_user          = "your_cf_user"
+cf_password      = "your_cf_password"
+jwt_secret       = "your_jwt_secret"
+anon_key         = "your_anon_key"
+service_role_key = "your_service_role_key"

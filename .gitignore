@@ -1,2 +1,8 @@
 .DS_Store
 /todo.txt
+
+# Ignore local Terraform state and vars
+.terraform
+**/*.tfstate
+**/*.tfstate.backup
+**/*.tfvars
