@@ -1,5 +1,5 @@
 ---
-    name: Pull images, then scan and push them to GHCR
+    name: Pull images, scan, push to GHCR
     on:
       workflow_dispatch:
       schedule:
@@ -18,6 +18,8 @@
           fail-fast: false
           matrix:
             image:
+              - name: ghcr.io/supabase/postgres-meta:v0.81.1
+                short-name: meta
               - name: postgrest/postgrest:latest
                 short-name: rest
               - name: ghcr.io/supabase/storage-api:v1.3.1
