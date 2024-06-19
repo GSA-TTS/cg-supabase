@@ -24,7 +24,7 @@
                 short-name: rest
               - name: ghcr.io/supabase/storage-api:v1.3.1
                 short-name: storage
-              - name: ghcr.io/supabase/studio:20240527-f428ce5
+              - name: ghcr.io/supabase/studio:v1.24.05
                 short-name: studio
     
         steps:
