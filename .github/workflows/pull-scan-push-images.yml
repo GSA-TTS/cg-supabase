@@ -22,7 +22,7 @@
                 short-name: meta
               - name: postgrest/postgrest:latest
                 short-name: rest
-              - name: ghcr.io/supabase/storage-api:v1.3.1
+              - name: ghcr.io/supabase/storage-api:v1.5.1
                 short-name: storage
               - name: ghcr.io/supabase/studio:v1.24.05
                 short-name: studio
