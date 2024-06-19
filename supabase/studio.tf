@@ -3,7 +3,7 @@ locals {
   # TODO: Once Supabase publishes an image without CRITICAL and HIGH findings,
   #    switch to ghcr.io/gsa-tts/cg-supabase/studio:scanned
   studio_image             = "ghcr.io/supabase/studio"
-  studio_image_tag         = "20240527-f428ce5"
+  studio_image_tag         = "v1.24.05"
   studio_url               = "https://${cloudfoundry_route.supabase-studio.endpoint}"
   studio_connection_string = "${cloudfoundry_service_key.studio.credentials.uri}?sslmode=require"
 
