@@ -14,6 +14,7 @@
           security-events: write
         env:
           GH_REPO: gsa-tts/cg-supabase
+        name: Scan ${{ matrix.short-name }}
         strategy:
           fail-fast: false
           matrix:
