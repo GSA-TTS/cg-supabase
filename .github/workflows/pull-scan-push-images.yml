@@ -29,7 +29,7 @@
                 short-name: studio
               - name: kong:2.8.1
                 short-name: kong
-    
+        name: Scan ${{ matrix.image.short-name }}
         steps:
           - name: Checkout
             uses: actions/checkout@v4
