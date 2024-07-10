@@ -18,13 +18,13 @@
           fail-fast: false
           matrix:
             image:
-              - name: kong:2.8.1
+              - name: kong:2.8.5
                 short-name: kong
-              - name: ghcr.io/supabase/postgres-meta:v0.81.1
+              - name: ghcr.io/supabase/postgres-meta:v0.83.2
                 short-name: meta
               - name: postgrest/postgrest:latest
                 short-name: rest
-              - name: ghcr.io/supabase/storage-api:v1.5.1
+              - name: ghcr.io/supabase/storage-api:v1.7.0
                 short-name: storage
               - name: ghcr.io/supabase/studio:v1.24.05
                 short-name: studio
