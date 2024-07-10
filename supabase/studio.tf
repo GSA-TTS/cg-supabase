@@ -53,7 +53,7 @@ resource "cloudfoundry_app" "supabase-studio" {
     PGRST_DB_ANON_ROLE : "anon"
     PGRST_DB_MAX_ROWS : 20000
 
-    STUDIO_PG_META_URL : "http://meta:8080"
+    STUDIO_PG_META_URL : local.meta_url
 
     DEFAULT_ORGANIZATION_NAME : "Default Organization"
     DEFAULT_PROJECT_NAME : "Default Project"
@@ -67,5 +67,13 @@ resource "cloudfoundry_app" "supabase-studio" {
     LOGFLARE_URL : "http://analytics:4000"
     NEXT_PUBLIC_ENABLE_LOGS : "true"
     NEXT_ANALYTICS_BACKEND_PROVIDER : "postgres"
+  }
+}
+
+resource "cloudfoundry_network_policy" "studio-meta" {
+  policy {
+      source_app = cloudfoundry_app.supabase-studio.id
+      destination_app = cloudfoundry_app.supabase-meta.id
+      port = "61443"
   }
 }

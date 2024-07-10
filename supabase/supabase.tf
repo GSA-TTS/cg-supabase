@@ -1,5 +1,6 @@
 locals {
   # Names to use for each app (matches upstream docker-compose.yml)
+  meta_app_name    = "supabase-meta"
   rest_app_name    = "supabase-rest"
   storage_app_name = "supabase-storage"
   studio_app_name  = "supabase-studio"

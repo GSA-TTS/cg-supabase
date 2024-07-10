@@ -13,6 +13,7 @@ module "supabase" {
   service_role_key = var.service_role_key
 
   database_plan     = "micro-psql"
+  meta_instances    = 1
   rest_instances    = 1
   storage_instances = 1
   studio_instances  = 1

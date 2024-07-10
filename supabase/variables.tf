@@ -15,6 +15,18 @@ variable "database_plan" {
   default = "medium-gp-psql-redundant"
 }
 
+variable "meta_instances" {
+  type        = number
+  description = "the number of instances of the meta application to run (default: 2)"
+  default     = 2
+}
+
+variable "meta_memory" {
+  type        = string
+  description = "the memory limit in megabytes for each postgrest instance (default: 128)"
+  default     = "128"
+}
+
 variable "rest_instances" {
   type        = number
   description = "the number of instances of the postgrest application to run (default: 2)"
