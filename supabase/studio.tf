@@ -39,6 +39,13 @@ resource "cloudfoundry_app" "supabase-studio" {
   health_check_type          = "http"
   health_check_http_endpoint = "/api/profile"
 
+  command = <<-EOT
+    # Make sure the Cloud Foundry-provided CA is recognized when making TLS connections
+    cat /etc/cf-system-certificates/* > /usr/local/share/ca-certificates/cf-system-certificates.crt
+    /usr/sbin/update-ca-certificates
+    # Now call the expected ENTRYPOINT and CMD
+    /usr/local/bin/docker-entrypoint.sh node /app/apps/studio/server.js
+    EOT
   environment = {
     # Upstream docs: https://github.com/supabase/supabase/blob/master/apps/studio/.env
 
