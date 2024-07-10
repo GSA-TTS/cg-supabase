@@ -66,12 +66,13 @@ module "supabase" {
 - `rest`, `studio`, and `storage` are deploying
     - `rest` seems to work fine
     - `studio` runs without crashing, but gets errors whenever you try to run an SQL query
+        - This will probably work now that we have `postgres-meta` running, but we can't auth yet
     - `storage` tries to run database migrations, but fails because there is no `postgres` role
         - 👆 I think this is also why `studio` isn't working
 
 ## TODO
 
-- `studio` needs auth, likely a brokered cloud.gov OIDC service using the nginx-conf buildpack
+- Deploy Kong as the API gateway in front of everything else
 - Allow injection of the bucket and postgres db in place of the module creating/managing them itself
 - Uncomment the `Deployment Architecture` section in this doc and make the diagram accurate
 
