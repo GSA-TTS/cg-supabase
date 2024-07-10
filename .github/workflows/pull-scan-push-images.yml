@@ -26,6 +26,8 @@
                 short-name: storage
               - name: ghcr.io/supabase/studio:v1.24.05
                 short-name: studio
+              - name: kong:2.8.1
+                short-name: kong
     
         steps:
           - name: Checkout
