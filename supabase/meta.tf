@@ -11,8 +11,7 @@ locals {
 resource "cloudfoundry_route" "supabase-meta" {
   space    = data.cloudfoundry_space.apps.id
   domain   = data.cloudfoundry_domain.private.id
-  hostname = "supabase${local.slug}"
-  # path     = "/api/pg-meta"
+  hostname = "supabase-meta${local.slug}"
 }
 
 resource "cloudfoundry_service_key" "meta" {
@@ -36,7 +35,7 @@ resource "cloudfoundry_app" "supabase-meta" {
   routes {
     route = cloudfoundry_route.supabase-meta.id
   }
-  health_check_type = "http"
+  health_check_type          = "http"
   health_check_http_endpoint = "/"
 
   environment = {

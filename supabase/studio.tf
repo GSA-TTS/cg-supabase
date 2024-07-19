@@ -11,8 +11,8 @@ locals {
 
 resource "cloudfoundry_route" "supabase-studio" {
   space    = data.cloudfoundry_space.apps.id
-  domain   = data.cloudfoundry_domain.public.id
-  hostname = "supabase${local.slug}"
+  domain   = data.cloudfoundry_domain.private.id
+  hostname = "supabase-studio${local.slug}"
 }
 
 resource "cloudfoundry_service_key" "studio" {
@@ -79,8 +79,8 @@ resource "cloudfoundry_app" "supabase-studio" {
 
 resource "cloudfoundry_network_policy" "studio-meta" {
   policy {
-      source_app = cloudfoundry_app.supabase-studio.id
-      destination_app = cloudfoundry_app.supabase-meta.id
-      port = "61443"
+    source_app      = cloudfoundry_app.supabase-studio.id
+    destination_app = cloudfoundry_app.supabase-meta.id
+    port            = "61443"
   }
 }

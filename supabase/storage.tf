@@ -8,9 +8,8 @@ locals {
 
 resource "cloudfoundry_route" "supabase-storage" {
   space    = data.cloudfoundry_space.apps.id
-  domain   = data.cloudfoundry_domain.public.id
-  hostname = "supabase${local.slug}"
-  path     = "/storage/v1"
+  domain   = data.cloudfoundry_domain.private.id
+  hostname = "supabase-storage${local.slug}"
 }
 
 
