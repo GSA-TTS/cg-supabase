@@ -15,6 +15,18 @@ variable "database_plan" {
   default = "medium-gp-psql-redundant"
 }
 
+variable "api_instances" {
+  type        = number
+  description = "the number of instances of the api application to run (default: 2)"
+  default     = 2
+}
+
+variable "api_memory" {
+  type        = string
+  description = "the memory limit in megabytes for each api application instance (default: 256)"
+  default     = "256"
+}
+
 variable "meta_instances" {
   type        = number
   description = "the number of instances of the meta application to run (default: 2)"

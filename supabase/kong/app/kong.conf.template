@@ -1,0 +1,48 @@
+# The bare-minimum for proper behavior in Cloud Foundry is specified here.
+# Additional options should be supplied as environment variables, eg KONG_PLUGINS.
+
+# Disable nginx daemon so that Kong runs as a foreground process
+nginx_daemon = off
+
+# Set spawned worker processes to 1 to keep memory usage at a reasonable level and promote
+# horizontal scaling on Cloud Foundry
+nginx_worker_processes = 1
+
+# Comma-separated list of headers Kong should inject in client responses. 
+# 'off' prevents Kong from injecting any headers by default. Does not prevent plugins from injecting headers of their own.
+headers = off
+
+# Turn database off in dbless mode
+database = off
+
+# The path to the declarative configuration file which holds the specification of all
+# entities (Routes, Services, Consumers, etc.) to be used when the database is set to "off".
+declarative_config = /home/vcap/app/kong.yml
+
+# Comma-separated list of addresses and ports on which the proxy server should listen for HTTP/HTTPS traffic.
+proxy_listen = 0.0.0.0:8080
+
+# Trust traffic coming from the Cloud Foundry envoy proxy
+trusted_ips = 10.0.0.0/8
+
+# Comma-separated list of addresses and ports on which the Admin interface should listen.
+# In normal operation changes are made by redeploying the app with new config, so the Admin
+# interface is only accessible for debugging purposes via port-forwarding.
+admin_listen = 127.0.0.1:8081 http2 ssl reuseport backlog=16384
+
+# Comma-separated list of addresses and ports on which the Status API should listen.
+status_listen = 0.0.0.0:8100 ssl
+
+# Use the platform-provided certificate
+status_ssl_cert = $CF_INSTANCE_CERT
+status_ssl_cert_key = $CF_INSTANCE_KEY
+
+# Set access log locations -> stdout
+proxy_access_log = /dev/stdout
+admin_access_log = /dev/stdout
+status_access_log = /dev/stdout
+
+# Set error log locations -> stderr
+proxy_error_log = /dev/stderr
+admin_error_log = /dev/stderr
+status_error_log = /dev/stderr

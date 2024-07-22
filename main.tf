@@ -1,7 +1,7 @@
 module "supabase" {
   source        = "./supabase"
-  cf_org_name   = "sandbox-gsa"
-  cf_space_name = "bret.mogilefsky"
+  cf_org_name   = "gsa-tts-oros-sorndashboard"
+  cf_space_name = "supabase"
 
   # TODO - Make use of injected proxy, logdrain, S3, and Postgres info
   # https_proxy       = module.https-proxy.https_proxy
@@ -13,6 +13,7 @@ module "supabase" {
   service_role_key = var.service_role_key
 
   database_plan     = "micro-psql"
+  api_instances     = 1
   meta_instances    = 1
   rest_instances    = 1
   storage_instances = 1

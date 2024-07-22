@@ -76,11 +76,3 @@ resource "cloudfoundry_app" "supabase-studio" {
     NEXT_ANALYTICS_BACKEND_PROVIDER : "postgres"
   }
 }
-
-resource "cloudfoundry_network_policy" "studio-meta" {
-  policy {
-    source_app      = cloudfoundry_app.supabase-studio.id
-    destination_app = cloudfoundry_app.supabase-meta.id
-    port            = "61443"
-  }
-}

@@ -1,0 +1,9 @@
+---
+keys:
+- https://packages.konghq.com/public/gateway-37/gpg.C05D9BEAEB9E8E18.key
+repos:
+- deb https://packages.konghq.com/public/gateway-37/deb/ubuntu jammy main
+packages:
+  - kong=$KONG_VERSION
+  - gettext-base
+  - inotify-tools

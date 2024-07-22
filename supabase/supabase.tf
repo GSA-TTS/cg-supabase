@@ -1,5 +1,6 @@
 locals {
   # Names to use for each app (matches upstream docker-compose.yml)
+  api_app_name     = "supabase-api"
   meta_app_name    = "supabase-meta"
   rest_app_name    = "supabase-rest"
   storage_app_name = "supabase-storage"
@@ -27,7 +28,6 @@ data "cloudfoundry_asg" "trusted-local-networks" {
 data "cloudfoundry_space" "space" {
   org_name = var.cf_org_name
   name     = var.cf_space_name
-
 }
 
 # TODO: This doesn't seem to be working; it gets a 403 response
