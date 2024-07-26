@@ -46,6 +46,55 @@ locals {
     ### API Routes
     ###
     services:
+      ## Open Auth routes
+      - name: auth-v1-open
+        url: ${local.auth_url}/verify
+        routes:
+          - name: auth-v1-open
+            strip_path: true
+            paths:
+              - /auth/v1/verify
+        plugins:
+          - name: cors
+      - name: auth-v1-open-callback
+        url: ${local.auth_url}/callback
+        routes:
+          - name: auth-v1-open-callback
+            strip_path: true
+            paths:
+              - /auth/v1/callback
+        plugins:
+          - name: cors
+      - name: auth-v1-open-authorize
+        url: ${local.auth_url}/authorize
+        routes:
+          - name: auth-v1-open-authorize
+            strip_path: true
+            paths:
+              - /auth/v1/authorize
+        plugins:
+          - name: cors
+
+      ## Secure Auth routes
+      - name: auth-v1
+        _comment: 'GoTrue: /auth/v1/* -> ${local.auth_url}/*'
+        url: ${local.auth_url}/
+        routes:
+          - name: auth-v1-all
+            strip_path: true
+            paths:
+              - /auth/v1/
+        plugins:
+          - name: cors
+          - name: key-auth
+            config:
+              hide_credentials: false
+          - name: acl
+            config:
+              hide_groups_header: true
+              allow:
+                - admin
+                - anon
 
       ## Secure REST routes
       - name: rest-v1
@@ -215,6 +264,7 @@ module "kong" {
 
   kong_version = "3.7.1"
   kong_config  = local.kong_config
+  kong_plugins = "request-transformer,cors,key-auth,acl,basic-auth"
 }
 
 # This is the main URL!

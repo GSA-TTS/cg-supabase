@@ -27,6 +27,18 @@ variable "api_memory" {
   default     = "256"
 }
 
+variable "auth_instances" {
+  type        = number
+  description = "the number of instances of the auth application to run (default: 2)"
+  default     = 2
+}
+
+variable "auth_memory" {
+  type        = string
+  description = "the memory limit in megabytes for each auth application instance (default: 128)"
+  default     = "128"
+}
+
 variable "meta_instances" {
   type        = number
   description = "the number of instances of the meta application to run (default: 2)"
