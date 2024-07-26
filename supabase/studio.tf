@@ -13,6 +13,7 @@ resource "cloudfoundry_route" "supabase-studio" {
   space    = data.cloudfoundry_space.apps.id
   domain   = data.cloudfoundry_domain.private.id
   hostname = "supabase-studio${local.slug}"
+  port     = 3000
 }
 
 resource "cloudfoundry_service_key" "studio" {
