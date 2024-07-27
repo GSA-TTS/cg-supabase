@@ -73,8 +73,8 @@
                 file: .docker/${{ matrix.image.short-name }}.Dockerfile
                 push: true
                 tags: > 
-                  ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:latest
-                  ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:scanned
+                  ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:latest ,
+                  ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:scanned ,
                   ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:${{ env.DATESTAMP }}
 
       
