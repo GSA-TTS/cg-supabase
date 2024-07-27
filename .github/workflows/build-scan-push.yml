@@ -32,8 +32,8 @@
             id: build
             uses: docker/build-push-action@v6
             with:
-              context: .
-              file: ./.docker/${{ matrix.image.short-name }}.Dockerfile
+              context: .docker
+              file: ${{ matrix.image.short-name }}.Dockerfile
               load: true
               tags: ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}
 
@@ -69,6 +69,8 @@
           - name: Push Image
             uses: docker/build-push-action@v6
             with:
+                context: .docker
+                file: ${{ matrix.image.short-name }}.Dockerfile
                 push: true
                 tags: > 
                   ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:latest
