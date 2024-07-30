@@ -2,7 +2,7 @@ locals {
   # TODO: Parameterize which image to use, with this as the default
   storage_image             = "ghcr.io/gsa-tts/cg-supabase/storage"
   storage_image_tag         = "scanned"
-  storage_url               = "https://${cloudfoundry_route.supabase-storage.endpoint}"
+  storage_url               = "https://${cloudfoundry_route.supabase-storage.endpoint}:61443"
   storage_connection_string = "${cloudfoundry_service_key.storage.credentials.uri}?sslmode=require"
 }
 

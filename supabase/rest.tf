@@ -2,7 +2,7 @@ locals {
   # TODO: Parameterize which image to use, with this as the default
   rest_image             = "ghcr.io/gsa-tts/cg-supabase/rest"
   rest_image_tag         = "scanned"
-  rest_url               = "https://${cloudfoundry_route.supabase-rest.endpoint}"
+  rest_url               = "https://${cloudfoundry_route.supabase-rest.endpoint}:61443"
   rest_connection_string = "${cloudfoundry_service_key.rest.credentials.uri}?sslmode=require"
 }
 

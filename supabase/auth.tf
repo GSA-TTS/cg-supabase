@@ -5,7 +5,7 @@ locals {
   auth_image_tag         = "v2.151.0"
   # auth_image_tag         = "scanned"
   auth_app_name          = "supabase-auth"
-  auth_url               = "https://${cloudfoundry_route.supabase-auth.endpoint}"
+  auth_url               = "https://${cloudfoundry_route.supabase-auth.endpoint}:61443"
   auth_connection_string = "${cloudfoundry_service_key.auth.credentials.uri}?sslmode=require"
 }
 
