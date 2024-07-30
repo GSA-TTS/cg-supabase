@@ -2,9 +2,9 @@ locals {
   # TODO: Parameterize which image to use, with this as the default
   # TODO: Once Supabase publishes an image without CRITICAL and HIGH findings,
   #    switch to ghcr.io/gsa-tts/cg-supabase/studio:scanned
-  studio_image             = "ghcr.io/supabase/studio"
-  studio_image_tag         = "v1.24.05"
-  studio_url               = "https://${cloudfoundry_route.supabase-studio.endpoint}"
+  studio_image             = "ghcr.io/gsa-tts/cg-supabase/studio"
+  studio_image_tag         = "scanned"
+  studio_url               = "https://${cloudfoundry_route.supabase-studio.endpoint}:61443"
   studio_connection_string = "${cloudfoundry_service_key.studio.credentials.uri}?sslmode=require"
 
 }
@@ -58,7 +58,7 @@ resource "cloudfoundry_app" "supabase-studio" {
 
     PGRST_DB_SCHEMAS : "public,storage,graphql_public"
     PGRST_DB_ANON_ROLE : "anon"
-    PGRST_DB_MAX_ROWS : 20000
+    PGRST_DB_MAX_ROWS : "20000"
 
     STUDIO_PG_META_URL : local.meta_url
 
