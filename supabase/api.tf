@@ -6,7 +6,7 @@ locals {
   api_username = "supabase"
   api_password = "this_password_is_insecure_and_should_be_updated"
 
-  api_app_id   = module.kong.app_id
+  api_app_id = module.kong.app_id
   # Upstream Supabase Kong config reference: 
   # https://github.com/supabase/supabase/blob/master/docker/volumes/api/kong.yml
   kong_config = <<-EOT

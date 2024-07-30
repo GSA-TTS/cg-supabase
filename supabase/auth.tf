@@ -1,8 +1,8 @@
 locals {
   # TODO: Parameterize which image to use, with this as the default
-  auth_image             = "supabase/gotrue"
+  auth_image = "supabase/gotrue"
   # auth_image             = "ghcr.io/gsa-tts/cg-supabase/auth"
-  auth_image_tag         = "v2.151.0"
+  auth_image_tag = "v2.151.0"
   # auth_image_tag         = "scanned"
   auth_app_name          = "supabase-auth"
   auth_url               = "https://${cloudfoundry_route.supabase-auth.endpoint}:61443"
