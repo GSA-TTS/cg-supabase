@@ -37,7 +37,7 @@
             run: docker pull ${{ matrix.image.name }}
     
           - name: Scan Image
-            uses: aquasecurity/trivy-action@0.24.0
+            uses: aquasecurity/trivy-action@0.29.0
             with:
               scan-type: 'image'
               image-ref: ${{ matrix.image.name }}
