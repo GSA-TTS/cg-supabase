@@ -13,7 +13,7 @@ locals {
 
 # The beating heart of all Supabase services is a Postgres database
 module "database" {
-  source        = "github.com/GSA-TTS/terraform-cloudgov//database?ref=v1.0.0"
+  source        = "github.com/GSA-TTS/terraform-cloudgov//database?ref=v2.0.0"
   cf_org_name   = var.cf_org_name
   cf_space_name = var.cf_space_name
   name          = "supabase-db"
