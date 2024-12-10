@@ -20,7 +20,7 @@ resource "cloudfoundry_service_key" "storage" {
 
 # Storage needs an S3 bucket to manage
 module "s3-private" {
-  source = "github.com/GSA-TTS/terraform-cloudgov//s3?ref=v1.0.0"
+  source = "github.com/GSA-TTS/terraform-cloudgov//s3?ref=v2.0.0"
 
   cf_org_name   = var.cf_org_name
   cf_space_name = var.cf_space_name
