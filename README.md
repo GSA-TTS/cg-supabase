@@ -31,35 +31,61 @@ module "supabase" {
 }
 ```
 
-<!-- 
 ## Deployment architecture
 
 ```mermaid
     C4Context
-      title blue items are managed by the module
-      Boundary(system, "system boundary") {
-          Boundary(trusted_local_egress, "egress-controlled space", "trusted-local-egress ASG") {
-            System(credentials, "Proxy Credentials", "UPSI")
-            System_Ext(client1, "Client1", "a client")
+      title Supabase on cloud.gov - blue items are managed by the module
+      
+      Boundary(cloudgov, "cloud.gov environment") {
+          Boundary(target_space, "target space") {
+            System(kong, "Kong API Gateway", "API gateway & auth")
+            System(rest, "PostgREST", "REST API server")
+            System(studio, "Supabase Studio", "Admin dashboard")
+            System(storage, "Supabase Storage", "File storage API")
+            System(postgres_meta, "Postgres Meta", "DB metadata API")
+            System(postgres_db, "PostgreSQL", "Primary database")
+            System(s3_bucket, "S3 Bucket", "File storage")
           }
-
-          Boundary(public_egress, "egress-permitted space", "public-egress ASG") {
-            System(https_proxy, "web egress proxy", "proxy for HTTP/S connections")
+          
+          Boundary(proxy_space, "proxy space") {
+            System(https_proxy, "HTTPS Proxy", "External connectivity")
           }
       }
       
-      Boundary(external_boundary, "external boundary") {
-        System_Ext(external_service, "external service", "service that the application relies on")
+      Boundary(external, "External") {
+        System_Ext(client_app, "Client Application", "Your application")
+        System_Ext(admin_user, "Admin User", "Developer/Admin")
       }
 
-      Rel(credentials, client1, "delivers credentials", "VCAP_SERVICES")
-      Rel(client1, https_proxy, "makes request", "HTTP/S")
-      Rel(https_proxy, external_service, "proxies request", "HTTP/S")
+      Rel(client_app, kong, "API requests", "HTTPS")
+      Rel(admin_user, studio, "Admin access", "HTTPS")
+      Rel(kong, rest, "Routes API calls")
+      Rel(kong, storage, "Routes storage calls")
+      Rel(kong, studio, "Routes admin calls")
+      Rel(rest, postgres_db, "Queries")
+      Rel(studio, postgres_meta, "Schema queries")
+      Rel(postgres_meta, postgres_db, "Metadata queries")
+      Rel(storage, s3_bucket, "File operations")
+      Rel(storage, postgres_db, "Metadata storage")
+      Rel(kong, https_proxy, "External requests")
 ```
 1. Creates an egress proxy in the designated space
 2. Adds network-policies so that clients can reach the proxy
 3. Creates a user-provided service instance in the client space with credentials
- -->
+
+## SETUP
+tfenv use v1.12.2
+
+https://docs.cloudfoundry.org/cf-cli/install-go-cli.html
+
+```bash
+brew install tfenv
+cf login -a api.fr.cloud.gov  --sso
+```
+
+
+brew install inframap
 
 ## STATUS
 

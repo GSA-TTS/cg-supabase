@@ -1,5 +1,6 @@
 .DS_Store
 /todo.txt
+.env
 
 # Ignore local Terraform state and vars
 .terraform
