@@ -4,8 +4,13 @@ variable "cf_org_name" {
 }
 
 variable "cf_space_name" {
+  description = "The name of the Cloud Foundry space"
   type        = string
-  description = "name of the Cloud Foundry space to configure"
+}
+
+variable "cf_space_id" {
+  description = "The ID of the Cloud Foundry space"
+  type        = string
 }
 
 variable "database_plan" {
@@ -117,5 +122,16 @@ variable "logflare_logger_backend_api_key" {
   description = "the API key for logflare loggers to talk to the backend"
   default     = "your-super-secret-and-long-logflare-key"
   sensitive   = true
+}
+
+variable "https_proxy" {
+  description = "The HTTPS proxy server URL"
+  type        = string
+}
+
+variable "app_name" {
+  description = "Base name for the Supabase application components"
+  type        = string
+  default     = "supabase"
 }
 

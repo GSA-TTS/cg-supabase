@@ -6,6 +6,9 @@ locals {
   storage_app_name = "supabase-storage"
   studio_app_name  = "supabase-studio"
 
+  # Database name
+  database_name = "${var.app_name}-db"
+
   # A generated slug for use in domain names to avoid collisions, etc.
   slug = "-${trim(replace(replace(lower(var.cf_space_name), "/[^\\w_]/", "-"), "/-+/", "-"), "-")}"
 
@@ -13,11 +16,12 @@ locals {
 
 # The beating heart of all Supabase services is a Postgres database
 module "database" {
-  source        = "github.com/GSA-TTS/terraform-cloudgov//database?ref=v2.0.0"
-  cf_org_name   = var.cf_org_name
-  cf_space_name = var.cf_space_name
-  name          = "supabase-db"
-  rds_plan_name = var.database_plan
+  source = "github.com/gsa-tts/terraform-cloudgov//database?ref=v2.4.0"
+
+  cf_space_id     = var.cf_space_id
+  name            = local.database_name
+  rds_plan_name   = var.database_plan
+  tags            = ["supabase"]
 }
 
 # Make sure the space can reach brokered services

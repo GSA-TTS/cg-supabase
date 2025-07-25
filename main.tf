@@ -1,21 +1,26 @@
+data "cloudfoundry_space" "target" {
+  name = var.cf_space_name
+  org  = data.cloudfoundry_org.target.id
+}
+
+data "cloudfoundry_org" "target" {
+  name = var.cf_org_name
+}
+
 module "supabase" {
   source        = "./supabase"
-  cf_org_name   = "gsa-tts-oros-sorndashboard"
-  cf_space_name = "supabase"
-
-  # TODO - Make use of injected proxy, logdrain, S3, and Postgres info
-  # https_proxy       = module.https-proxy.https_proxy
-  # s3_id             = module.s3-private.bucket_id
-  # logdrain_id       = module.cg-logshipper.logdrain_service_id
+  cf_org_name   = var.cf_org_name
+  cf_space_name = var.cf_space_name
+  cf_space_id   = data.cloudfoundry_space.target.id
+  https_proxy   = var.https_proxy
+  app_name      = var.app_name
 
   jwt_secret       = var.jwt_secret
   anon_key         = var.anon_key
   service_role_key = var.service_role_key
 
-  database_plan     = "micro-psql"
-  api_instances     = 1
-  meta_instances    = 1
-  rest_instances    = 1
-  storage_instances = 1
-  studio_instances  = 1
+  database_plan     = var.database_plan
+  rest_instances    = var.rest_instances
+  storage_instances = var.storage_instances
 }
+

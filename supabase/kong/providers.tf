@@ -5,6 +5,11 @@ terraform {
       source  = "cloudfoundry-community/cloudfoundry"
       version = "~>0.53.1"
     }
+    docker = {
+      source  = "docker/docker"
+      version = "0.4.3"
+    }
   }
 }
+
 

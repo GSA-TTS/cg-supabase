@@ -114,7 +114,7 @@ The deployment consists of several containerized services deployed to Cloud Foun
 - Sensitive variables marked appropriately
 
 ## Contributing
-- Follow 18F open source policy
+- Follow open source policy
 - Code released under CC0 public domain
 - Use GitHub issues for bug reports and features
 - See CONTRIBUTING.md for detailed guidelines

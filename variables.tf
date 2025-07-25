@@ -1,14 +1,3 @@
-variable "cf_user" {
-  type        = string
-  description = "cloud.gov deployer account user"
-}
-
-variable "cf_password" {
-  type        = string
-  description = "secret; cloud.gov deployer account password"
-  sensitive   = true
-}
-
 variable "cf_org_name" {
   description = "The name of the Cloud Foundry organization"
   type        = string
@@ -19,24 +8,16 @@ variable "cf_space_name" {
   type        = string
 }
 
-variable "cf_space_id" {
-  description = "The ID of the Cloud Foundry space"
-  type        = string
-}
-
 variable "https_proxy" {
   description = "HTTPS proxy configuration"
   type        = string
+  default     = ""
 }
 
-variable "s3_id" {
-  description = "S3 bucket ID for storage"
+variable "app_name" {
+  description = "Base name for the Supabase application components"
   type        = string
-}
-
-variable "logdrain_id" {
-  description = "Log drain service ID"
-  type        = string
+  default     = "supabase"
 }
 
 variable "jwt_secret" {
@@ -60,7 +41,7 @@ variable "service_role_key" {
 variable "database_plan" {
   description = "Database plan for PostgreSQL service"
   type        = string
-  default     = "micro-psql"
+  default     = "dev-psql"
 }
 
 variable "rest_instances" {
@@ -75,8 +56,3 @@ variable "storage_instances" {
   default     = 1
 }
 
-variable "disk_quota" {
-  description = "Disk quota in MB for applications"
-  type        = number
-  default     = 1024
-}
