@@ -31,35 +31,49 @@ module "supabase" {
 }
 ```
 
-<!-- 
 ## Deployment architecture
 
 ```mermaid
     C4Context
-      title blue items are managed by the module
-      Boundary(system, "system boundary") {
-          Boundary(trusted_local_egress, "egress-controlled space", "trusted-local-egress ASG") {
-            System(credentials, "Proxy Credentials", "UPSI")
-            System_Ext(client1, "Client1", "a client")
+      title Supabase on cloud.gov - blue items are managed by the module
+      
+      Boundary(cloudgov, "cloud.gov environment") {
+          Boundary(target_space, "target space") {
+            System(kong, "Kong API Gateway", "API gateway & auth")
+            System(rest, "PostgREST", "REST API server")
+            System(studio, "Supabase Studio", "Admin dashboard")
+            System(storage, "Supabase Storage", "File storage API")
+            System(postgres_meta, "Postgres Meta", "DB metadata API")
+            System(postgres_db, "PostgreSQL", "Primary database")
+            System(s3_bucket, "S3 Bucket", "File storage")
           }
-
-          Boundary(public_egress, "egress-permitted space", "public-egress ASG") {
-            System(https_proxy, "web egress proxy", "proxy for HTTP/S connections")
+          
+          Boundary(proxy_space, "proxy space") {
+            System(https_proxy, "HTTPS Proxy", "External connectivity")
           }
       }
       
-      Boundary(external_boundary, "external boundary") {
-        System_Ext(external_service, "external service", "service that the application relies on")
+      Boundary(external, "External") {
+        System_Ext(client_app, "Client Application", "Your application")
+        System_Ext(admin_user, "Admin User", "Developer/Admin")
       }
 
-      Rel(credentials, client1, "delivers credentials", "VCAP_SERVICES")
-      Rel(client1, https_proxy, "makes request", "HTTP/S")
-      Rel(https_proxy, external_service, "proxies request", "HTTP/S")
+      Rel(client_app, kong, "API requests", "HTTPS")
+      Rel(admin_user, studio, "Admin access", "HTTPS")
+      Rel(kong, rest, "Routes API calls")
+      Rel(kong, storage, "Routes storage calls")
+      Rel(kong, studio, "Routes admin calls")
+      Rel(rest, postgres_db, "Queries")
+      Rel(studio, postgres_meta, "Schema queries")
+      Rel(postgres_meta, postgres_db, "Metadata queries")
+      Rel(storage, s3_bucket, "File operations")
+      Rel(storage, postgres_db, "Metadata storage")
+      Rel(kong, https_proxy, "External requests")
 ```
+
 1. Creates an egress proxy in the designated space
 2. Adds network-policies so that clients can reach the proxy
 3. Creates a user-provided service instance in the client space with credentials
- -->
 
 ## STATUS
 
@@ -76,22 +90,15 @@ module "supabase" {
 
 **For Development (recommended):**
 ```bash
-# Review DEVELOPMENT.md for setup instructions
+# Review DEVELOPMENT.md for detailed instructions and troubleshooting
 cd docker
 docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml up -d
 chmod +x test_supabase_health.sh
 ./test_supabase_health.sh
-
-docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml down -v  # Stop and remove containers, volumes, and networks
+docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml down  
+# Stop and remove containers, volumes, and networks
 ```
 
-**For Production-like Testing:**
-```bash
-cd docker
-docker compose up -d
-chmod +x test_supabase_health.sh
-./test_supabase_health.sh
-```
 
 ### Once running locally
 Supabase services will be available at `http://localhost:8082` (Studio), `http://localhost:8000` (API Gateway), and `http://localhost:4000` (Analytics).
@@ -137,179 +144,6 @@ The Supabase stack uses several database initialization scripts that are automat
 
 **Development Seed Data** (`docker/dev/`):
 - `data.sql` - Contains sample tables, policies, and data for development
-
-**Key Differences:**
-- **Development mode** (`-f ./dev/docker-compose.dev.yml`): Includes sample data, mail testing server, and development-optimized settings
-- **Production mode** (default): Only core infrastructure, no sample data, production-oriented configuration
-
-### File Permissions Setup
-
-**Important:** Docker containers need proper file permissions to read initialization scripts:
-
-```bash
-# Set proper permissions on all initialization files
-cd docker
-chmod 644 volumes/db/*.sql
-chmod 644 dev/*.sql
-chmod -R 755 volumes/
-```
-
-### Setup Commands
-
-**Fresh Installation:**
-```bash
-cd docker
-# Ensure proper permissions
-chmod 644 volumes/db/*.sql dev/*.sql
-chmod -R 755 volumes/
-
-# Start with development overlay
-docker compose -f docker-compose.yml -f dev/docker-compose.dev.yml up -d
-
-# Check status
-../test_supabase_health.sh
-```
-
-**Clean Restart (removes all data):**
-```bash
-cd docker
-docker compose down -v  # Removes volumes and networks
-chmod 644 volumes/db/*.sql dev/*.sql  # Reset permissions
-docker compose -f docker-compose.yml -f dev/docker-compose.dev.yml up -d
-```
-
-### Service URLs
-
-When running, services are accessible at:
-
-- **Supabase Studio**: http://localhost:8082 (Web interface for database management)
-- **API Gateway (Kong)**: http://localhost:8000 (All API endpoints)
-- **Meta API**: http://localhost:5555 (Database metadata)
-- **Analytics (Logflare)**: http://localhost:4000 (Logging dashboard)
-- **Mail Interface**: http://localhost:9000 (Email testing)
-
-## Debug and Troubleshooting
-
-### Common Issues and Solutions
-
-#### 1. Container Permission Errors
-
-**Symptoms:** Containers fail to start with permission denied errors
-```bash
-# Fix file permissions
-cd docker
-chmod 644 volumes/db/*.sql dev/*.sql
-chmod -R 755 volumes/ dev/
-docker compose restart
-```
-
-#### 2. Database Authentication Failures
-
-**Symptoms:** Services can't connect to database, password authentication failed
-```bash
-# Run manual database fixes
-cd docker
-docker exec -e PGPASSWORD=postgres supabase-db psql -U postgres -f /docker-entrypoint-initdb.d/debug_manual_fixes.sql
-# Or manually fix passwords
-docker exec -e PGPASSWORD=postgres supabase-db psql -U postgres -c "
-ALTER USER supabase_auth_admin PASSWORD 'your-super-secret-and-long-postgres-password';
-ALTER USER supabase_storage_admin PASSWORD 'your-super-secret-and-long-postgres-password';
-"
-```
-
-#### 3. Missing Database Schemas
-
-**Symptoms:** Auth or realtime services failing with "schema does not exist"
-```bash
-# Create missing schemas manually
-docker exec -e PGPASSWORD=postgres supabase-db psql -U postgres -c "
-DROP SCHEMA IF EXISTS auth CASCADE;
-CREATE SCHEMA auth;
-GRANT USAGE ON SCHEMA auth TO postgres, anon, authenticated, service_role, supabase_auth_admin;
-GRANT CREATE ON SCHEMA auth TO supabase_auth_admin;
-"
-
-# Create realtime schema
-docker exec -e PGPASSWORD=postgres supabase-db psql -U postgres -c "
-CREATE SCHEMA IF NOT EXISTS realtime;
-GRANT USAGE ON SCHEMA realtime TO postgres, anon, authenticated, service_role;
-"
-
-# Restart affected services
-docker restart supabase-auth realtime-dev.supabase-realtime
-```
-
-#### 4. Analytics Database Missing
-
-**Symptoms:** Analytics service fails, "_supabase database does not exist"
-```bash
-# Create analytics database and schema
-docker exec -e PGPASSWORD=postgres supabase-db psql -U postgres -c "
-CREATE DATABASE _supabase;
-"
-docker exec -e PGPASSWORD=postgres supabase-db psql -U postgres -d _supabase -c "
-CREATE SCHEMA IF NOT EXISTS _analytics;
-"
-docker restart supabase-analytics
-```
-
-#### 5. Kong Configuration File Access
-
-**Symptoms:** Kong failing with "can't open temp.yml: Permission denied"
-```bash
-# Fix Kong configuration permissions
-cd docker
-chmod -R 755 volumes/
-find volumes/ -type f -exec chmod 644 {} \;
-docker restart supabase-kong
-```
-
-### Debug Commands
-
-**Check container status:**
-```bash
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-```
-
-**View service logs:**
-```bash
-docker logs supabase-auth
-docker logs supabase-kong  
-docker logs supabase-db
-docker logs supabase-analytics
-```
-
-**Connect to database:**
-```bash
-docker exec -e PGPASSWORD=postgres -it supabase-db psql -U postgres
-```
-
-**Run health check:**
-```bash
-cd /path/to/cg-supabase
-./test_supabase_health.sh
-```
-
-**Manual SQL fixes (if automatic initialization fails):**
-```bash
-# Run comprehensive debug script
-docker exec -e PGPASSWORD=postgres supabase-db psql -U postgres -f /docker-entrypoint-initdb.d/debug_manual_fixes.sql
-```
-
-### Expected HTTP Status Codes
-
-When testing endpoints, these responses are **normal**:
-- **HTTP 401 (Unauthorized)**: API endpoints require authentication keys
-- **HTTP 400 (Bad Request)**: Some endpoints need specific headers  
-- **HTTP 404 (Not Found)**: Some health check endpoints don't exist
-- **HTTP 200 (OK)**: Successful responses
-
-Only **connection failures** and **500 errors** indicate actual problems.
-## TODO
-
-- Deploy Kong as the API gateway in front of everything else
-- Allow injection of the bucket and postgres db in place of the module creating/managing them itself
-- Uncomment the `Deployment Architecture` section in this doc and make the diagram accurate
 
 ## Contributing
 

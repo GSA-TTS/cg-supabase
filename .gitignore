@@ -9,3 +9,5 @@
 **/*.tfvars
 supabase/kong/app.zip
 *.env
+/.docker
+/docker/volumes/db/data
