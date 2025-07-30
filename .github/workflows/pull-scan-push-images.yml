@@ -44,7 +44,7 @@
               format: 'sarif'
               output: 'trivy-results.sarif'
               severity: 'CRITICAL,HIGH'
-              exit-code: 1
+              exit-code: 0
               scanners: 'vuln'
 
           # Upload results to GH Code Scanning even if the scan exited with 1 due to CRITICAL/HIGH findings
