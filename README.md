@@ -81,6 +81,8 @@ cd docker
 docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml up -d
 chmod +x test_supabase_health.sh
 ./test_supabase_health.sh
+
+docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml down -v  # Stop and remove containers, volumes, and networks
 ```
 
 **For Production-like Testing:**
@@ -90,6 +92,34 @@ docker compose up -d
 chmod +x test_supabase_health.sh
 ./test_supabase_health.sh
 ```
+
+### Once running locally
+Supabase services will be available at `http://localhost:8082` (Studio), `http://localhost:8000` (API Gateway), and `http://localhost:4000` (Analytics).
+Username: supabase
+Password: this_password_is_insecure_and_should_be_updated
+
+### Updating Secrets
+
+The `.env` file in the `docker/` directory contains environment variables required for the Docker Compose setup. This file holds sensitive data such as database passwords, API keys, and service credentials. **Always update these values before running in production, and rerun Docker Compose to apply any changes.**
+
+**Key variables to configure:**
+
+- `POSTGRES_PASSWORD`: Password for the `postgres` database role.
+- `JWT_SECRET`: Secret used by PostgREST, GoTrue, and other services for authentication.
+- `SITE_URL`: The base URL of your deployment.
+- `SMTP_*`: Credentials for your SMTP mail server (can use any SMTP provider).
+- `POOLER_TENANT_ID`: Tenant ID for the Supavisor pooler in your connection string.
+
+After updating any values, restart the relevant services for changes to take effect.
+
+#### Dashboard Authentication
+
+The Supabase Dashboard is protected with basic authentication. **You must change the default credentials before using in production.** Update these values in `docker/.env`:
+
+- `DASHBOARD_USERNAME`: Username for Dashboard login.
+- `DASHBOARD_PASSWORD`: Password for Dashboard login.
+
+**Note:** Restart Docker Compose after making changes to the `.env` file to ensure all services pick up the new configuration.
 
 ### Database Initialization
 

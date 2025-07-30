@@ -8,3 +8,4 @@
 **/*.tfstate.*.backup
 **/*.tfvars
 supabase/kong/app.zip
+*.env
