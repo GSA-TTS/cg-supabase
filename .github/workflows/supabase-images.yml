@@ -58,6 +58,9 @@ jobs:
           - name: supabase/supavisor:2.5.7
             short-name: pooler
             scan: true
+          - name: inbucket/inbucket:3.0.3
+            short-name: mail
+            scan: true
             
     name: Process ${{ matrix.image.short-name }}
     steps:
