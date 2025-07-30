@@ -1,0 +1,120 @@
+# cg-supabase Project Context
+
+## Overview
+This is a Terraform module that deploys Supabase (an open-source Firebase alternative) on cloud.gov. The project provides a compliance- and production-oriented backend using Supabase's collection of open source components.
+
+## Architecture
+The deployment consists of several containerized services deployed to Cloud Foundry:
+- **Kong API Gateway** - Routes requests and handles authentication
+- **PostgREST** - Provides REST API from PostgreSQL schema
+- **Supabase Studio** - Web-based database management UI
+- **Supabase Storage** - File storage service with S3 backend
+- **Supabase Meta** - Database metadata service
+- **Supabase Auth** - Authentication service (currently commented out)
+- **PostgreSQL Database** - Core database managed by cloud.gov RDS
+
+## Key Components
+
+### Main Module Structure
+- `main.tf` - Entry point, calls the supabase module
+- `variables.tf` - Root-level variables (cf_user, cf_password, JWT secrets)
+- `vars.auto.tfvars-example` - Example configuration file
+- `providers-managed.tf` - Terraform provider configuration
+
+### Supabase Module (`./supabase/`)
+- `supabase.tf` - Core infrastructure (database, networking, domains)
+- `api.tf` - Kong API gateway configuration and routing
+- `rest.tf` - PostgREST service
+- `storage.tf` - Storage service with S3 integration
+- `studio.tf` - Supabase Studio UI
+- `meta.tf` - Database metadata service
+- `auth.tf` - Authentication service (currently disabled)
+- `kong/` - Kong gateway submodule
+
+### Kong Submodule (`./supabase/kong/`)
+- `kong.tf` - Kong application deployment
+- `variables.tf` - Kong-specific variables
+- `outputs.tf` - Kong app ID output
+
+## Current Status
+- **Working**: REST, Studio, Storage services deploy successfully
+- **Issues**: 
+  - Studio gets errors on SQL queries (may be resolved with meta service)
+  - Storage fails database migrations due to missing postgres role
+  - Auth service is commented out pending fixes
+- **TODO**: Complete Kong API gateway deployment and authentication flow
+
+## Key Configuration
+
+### Variables
+- `cf_user/cf_password` - Cloud Foundry credentials
+- `jwt_secret` - JWT signing secret
+- `anon_key` - Anonymous access key
+- `service_role_key` - Service role access key
+- Instance counts and memory limits for each service
+
+### Networking
+- Uses `apps.internal` domain for inter-service communication
+- `app.cloud.gov` for public access
+- Network policies control service-to-service communication
+- All services communicate on port 61443
+
+### Database
+- Uses cloud.gov RDS PostgreSQL
+- Default plan: `medium-gp-psql-redundant`
+- Each service gets its own database service key
+- SSL connections required (`?sslmode=require`)
+
+## Service Details
+
+### Kong API Gateway
+- Routes all external requests
+- Handles authentication via key-auth plugin
+- Supports CORS, request transformation, ACL
+- Configuration in YAML format within api.tf
+
+### PostgREST
+- Exposes database schemas as REST API
+- Schemas: `public`, `storage`, `graphql_public`
+- Anonymous role: `anon`
+- Max rows: 20,000
+
+### Storage
+- S3 backend using cloud.gov S3 service
+- File size limit: 52MB
+- Supports image transformation (commented out)
+- Manages file permissions and access
+
+### Studio
+- Web UI for database management
+- Connects to meta service for database operations
+- Default organization/project names configurable
+
+### Meta
+- Provides database metadata API
+- Required for Studio functionality
+- Runs on port 8080
+
+## Docker Images
+- Uses GSA-TTS scanned images where available
+- Falls back to upstream Supabase images
+- Image tags specified in each service's locals
+
+## Development Notes
+- All services use rolling deployment strategy
+- Health checks configured for each service
+- CA certificates handled for TLS connections
+- Environment variables used for service configuration
+
+## Security
+- JWT-based authentication
+- Service-to-service network policies
+- SSL/TLS for all database connections
+- FIPS-compliant S3 endpoints
+- Sensitive variables marked appropriately
+
+## Contributing
+- Follow open source policy
+- Code released under CC0 public domain
+- Use GitHub issues for bug reports and features
+- See CONTRIBUTING.md for detailed guidelines
