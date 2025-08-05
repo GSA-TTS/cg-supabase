@@ -21,14 +21,13 @@ module "supabase" {
   s3_id             = module.s3-private.bucket_id
   logdrain_id       = module.cg-logshipper.logdrain_service_id
 
-  jwt_secret       = var.jwt_secret
-  anon_key         = var.anon_key
-  service_role_key = var.service_role_key
+  jwt_secret        = var.jwt_secret
+  anon_key          = var.anon_key
+  service_role_key  = var.service_role_key
 
-  database_plan         = "micro-psql"
-  rest_instances        = 1
-  storage_instances     = 1
-  disk_quota            = #
+  database_plan     = "micro-psql"
+  rest_instances    = 1
+  storage_instances = 1
 }
 ```
 
