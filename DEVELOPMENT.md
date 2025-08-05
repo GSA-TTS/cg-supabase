@@ -21,6 +21,7 @@ open http://localhost:8000
 The development environment includes the core services that match the production Terraform deployment:
 
 ### Core Services (Terraform Production)
+
 - **Kong Gateway** (port 8000) - API gateway and routing
 - **PostgREST** - REST API from PostgreSQL  
 - **Storage API** - File storage and management
@@ -33,10 +34,10 @@ The development environment includes the core services that match the production
 
 | Service | Development URL | Production Path | Terraform File |
 |---------|-----------------|-----------------|----------------|
-| Studio UI | http://localhost:8000 | `supabase${slug}.app.cloud.gov` | `studio.tf` |
-| REST API | http://localhost:8000/rest/v1/ | `/rest/v1/` | `rest.tf` |
-| Auth API | http://localhost:8000/auth/v1/ | `/auth/v1/` | `auth.tf` |
-| Storage | http://localhost:8000/storage/v1/ | `/storage/v1/` | `storage.tf` |
+| Studio UI | <http://localhost:8000> | `supabase${slug}.app.cloud.gov` | `studio.tf` |
+| REST API | <http://localhost:8000/rest/v1/> | `/rest/v1/` | `rest.tf` |
+| Auth API | <http://localhost:8000/auth/v1/> | `/auth/v1/` | `auth.tf` |
+| Storage | <http://localhost:8000/storage/v1/> | `/storage/v1/` | `storage.tf` |
 | Database | localhost:5432 | RDS service | `supabase.tf` |
 
 ## Environment Configuration
@@ -69,34 +70,41 @@ SMTP_HOST=localhost   # External SMTP in production
 ## Development vs Production Differences
 
 ### Database
+
 - **Development**: PostgreSQL container with local storage
 - **Production**: Managed RDS with high availability and encryption
 
 ### Storage
+
 - **Development**: Local file storage in `./volumes/storage`
 - **Production**: S3-compatible object storage with FIPS compliance
 
 ### Networking
+
 - **Development**: Docker internal networks
 - **Production**: Cloud Foundry service mesh with network policies
 
 ### SSL/TLS
+
 - **Development**: HTTP-only (optional HTTPS)
 - **Production**: Mandatory SSL with platform certificates
 
 ### Images
+
 - **Development**: Latest Supabase images from `ghcr.io/supabase/*:latest`
 - **Production**: Scanned GSA-TTS images from `ghcr.io/gsa-tts/cg-supabase/*:scanned`
 
 ## Security Considerations
 
 ### Development Environment
+
 - Uses default passwords and keys (change for any shared environment)
 - No access controls between services  
 - Local storage without encryption
 - HTTP-only communication
 
-### Production Environment  
+### Production Environment
+
 - Managed secrets through Terraform variables
 - Network policies control service communication
 - Encrypted storage and databases
@@ -133,6 +141,7 @@ docker-compose build
 ## Troubleshooting
 
 ### Services Not Starting
+
 ```bash
 # Check service health
 docker-compose ps
@@ -145,6 +154,7 @@ docker-compose restart [service-name]
 ```
 
 ### Database Connection Issues
+
 ```bash
 # Check database is running
 docker-compose exec db pg_isready -U postgres
@@ -158,6 +168,7 @@ docker-compose up -d db
 ```
 
 ### Storage Issues
+
 ```bash
 # Check storage directory permissions
 ls -la volumes/storage
@@ -172,6 +183,7 @@ docker-compose up -d
 ## Custom Configuration
 
 **Key Differences:**
+
 - **Development mode** (`-f ./dev/docker-compose.dev.yml`): Includes sample data, mail testing server, and development-optimized settings
 - **Production mode** (default): Only core infrastructure, no sample data, production-oriented configuration
 
@@ -190,6 +202,7 @@ chmod -R 755 volumes/
 ### Setup Commands
 
 **Fresh Installation:**
+
 ```bash
 cd docker
 # Ensure proper permissions
@@ -204,6 +217,7 @@ docker compose -f docker-compose.yml -f dev/docker-compose.dev.yml up -d
 ```
 
 **Clean Restart (removes all data):**
+
 ```bash
 cd docker
 docker compose down -v  # Removes volumes and networks
@@ -215,11 +229,11 @@ docker compose -f docker-compose.yml -f dev/docker-compose.dev.yml up -d
 
 When running, services are accessible at:
 
-- **Supabase Studio**: http://localhost:8082 (Web interface for database management)
-- **API Gateway (Kong)**: http://localhost:8000 (All API endpoints)
-- **Meta API**: http://localhost:5555 (Database metadata)
-- **Analytics (Logflare)**: http://localhost:4000 (Logging dashboard)
-- **Mail Interface**: http://localhost:9000 (Email testing)
+- **Supabase Studio**: <http://localhost:8000> (Web interface for database management)
+- **API Gateway (Kong)**: <http://localhost:8000> (All API endpoints)
+- **Meta API**: <http://localhost:5555> (Database metadata)
+- **Analytics (Logflare)**: <http://localhost:4000> (Logging dashboard)
+- **Mail Interface (Inmail)**: <http://localhost:9025> (Email testing)
 
 ## Debug and Troubleshooting
 
@@ -239,6 +253,7 @@ docker compose restart
 #### 2. Database Authentication Failures
 
 **Symptoms:** Services can't connect to database, password authentication failed
+
 ```bash
 # Run manual database fixes
 cd docker
@@ -253,6 +268,7 @@ ALTER USER supabase_storage_admin PASSWORD 'your-super-secret-and-long-postgres-
 #### 3. Missing Database Schemas
 
 **Symptoms:** Auth or realtime services failing with "schema does not exist"
+
 ```bash
 # Create missing schemas manually
 docker exec -e PGPASSWORD=postgres supabase-db psql -U postgres -c "
@@ -275,6 +291,7 @@ docker restart supabase-auth realtime-dev.supabase-realtime
 #### 4. Analytics Database Missing
 
 **Symptoms:** Analytics service fails, "_supabase database does not exist"
+
 ```bash
 # Create analytics database and schema
 docker exec -e PGPASSWORD=postgres supabase-db psql -U postgres -c "
@@ -289,6 +306,7 @@ docker restart supabase-analytics
 #### 5. Kong Configuration File Access
 
 **Symptoms:** Kong failing with "can't open temp.yml: Permission denied"
+
 ```bash
 # Fix Kong configuration permissions
 cd docker
@@ -300,11 +318,13 @@ docker restart supabase-kong
 ### Debug Commands
 
 **Check container status:**
+
 ```bash
 docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 ```
 
 **View service logs:**
+
 ```bash
 docker logs supabase-auth
 docker logs supabase-kong  
@@ -313,17 +333,20 @@ docker logs supabase-analytics
 ```
 
 **Connect to database:**
+
 ```bash
 docker exec -e PGPASSWORD=postgres -it supabase-db psql -U postgres
 ```
 
 **Run health check:**
+
 ```bash
 cd /path/to/cg-supabase
 ./test_supabase_health.sh
 ```
 
 **Manual SQL fixes (if automatic initialization fails):**
+
 ```bash
 # Run comprehensive debug script
 docker exec -e PGPASSWORD=postgres supabase-db psql -U postgres -f /docker-entrypoint-initdb.d/debug_manual_fixes.sql
@@ -332,6 +355,7 @@ docker exec -e PGPASSWORD=postgres supabase-db psql -U postgres -f /docker-entry
 ### Expected HTTP Status Codes
 
 When testing endpoints, these responses are **normal**:
+
 - **HTTP 401 (Unauthorized)**: API endpoints require authentication keys
 - **HTTP 400 (Bad Request)**: Some endpoints need specific headers  
 - **HTTP 404 (Not Found)**: Some health check endpoints don't exist
@@ -345,6 +369,7 @@ Only **connection failures** and **500 errors** indicate actual problems.
 - Uncomment the `Deployment Architecture` section in this doc and make the diagram accurate
 
 ### Adding Custom Functions
+
 ```bash
 # Add functions to the functions directory
 mkdir -p volumes/functions/my-function
@@ -355,6 +380,7 @@ docker-compose restart functions
 ```
 
 ### Custom Kong Configuration
+
 Edit `volumes/api/kong.yml` to add custom routes or plugins:
 
 ```yaml
@@ -369,6 +395,7 @@ services:
 ```
 
 ### Database Migrations
+
 ```bash
 # Run migrations
 docker-compose exec db psql -U postgres -f /path/to/migration.sql
