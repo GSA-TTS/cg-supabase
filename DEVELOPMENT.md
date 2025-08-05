@@ -187,27 +187,12 @@ docker-compose up -d
 - **Development mode** (`-f ./dev/docker-compose.dev.yml`): Includes sample data, mail testing server, and development-optimized settings
 - **Production mode** (default): Only core infrastructure, no sample data, production-oriented configuration
 
-### File Permissions Setup
-
-**Important:** Docker containers need proper file permissions to read initialization scripts:
-
-```bash
-# Set proper permissions on all initialization files
-cd docker
-chmod 644 volumes/db/*.sql
-chmod 644 dev/*.sql
-chmod -R 755 volumes/
-```
-
 ### Setup Commands
 
 **Fresh Installation:**
 
 ```bash
 cd docker
-# Ensure proper permissions
-chmod 644 volumes/db/*.sql dev/*.sql
-chmod -R 755 volumes/
 
 # Start with development overlay
 docker compose -f docker-compose.yml -f dev/docker-compose.dev.yml up -d
@@ -221,7 +206,6 @@ docker compose -f docker-compose.yml -f dev/docker-compose.dev.yml up -d
 ```bash
 cd docker
 docker compose down -v  # Removes volumes and networks
-chmod 644 volumes/db/*.sql dev/*.sql  # Reset permissions
 docker compose -f docker-compose.yml -f dev/docker-compose.dev.yml up -d
 ```
 
@@ -239,18 +223,7 @@ When running, services are accessible at:
 
 ### Common Issues and Solutions
 
-#### 1. Container Permission Errors
-
-**Symptoms:** Containers fail to start with permission denied errors
-```bash
-# Fix file permissions
-cd docker
-chmod 644 volumes/db/*.sql dev/*.sql
-chmod -R 755 volumes/ dev/
-docker compose restart
-```
-
-#### 2. Database Authentication Failures
+#### 1. Database Authentication Failures
 
 **Symptoms:** Services can't connect to database, password authentication failed
 
@@ -265,7 +238,7 @@ ALTER USER supabase_storage_admin PASSWORD 'your-super-secret-and-long-postgres-
 "
 ```
 
-#### 3. Missing Database Schemas
+#### 2. Missing Database Schemas
 
 **Symptoms:** Auth or realtime services failing with "schema does not exist"
 
@@ -288,7 +261,7 @@ GRANT USAGE ON SCHEMA realtime TO postgres, anon, authenticated, service_role;
 docker restart supabase-auth realtime-dev.supabase-realtime
 ```
 
-#### 4. Analytics Database Missing
+#### 3. Analytics Database Missing
 
 **Symptoms:** Analytics service fails, "_supabase database does not exist"
 
@@ -303,7 +276,7 @@ CREATE SCHEMA IF NOT EXISTS _analytics;
 docker restart supabase-analytics
 ```
 
-#### 5. Kong Configuration File Access
+#### 4. Kong Configuration File Access
 
 **Symptoms:** Kong failing with "can't open temp.yml: Permission denied"
 
