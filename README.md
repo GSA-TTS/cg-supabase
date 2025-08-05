@@ -11,6 +11,7 @@ Your project probably needs a backend and a DB, and you probably want to avoid w
 This module deploys Supabase on cloud.gov, providing a compliance- and production-oriented backend that you can use immediately. 
 
 ## Usage
+
 ```terraform
 module "supabase" {
   source            = "../path/to/source"
@@ -78,29 +79,43 @@ module "supabase" {
 ## STATUS
 
 - `rest`, `studio`, and `storage` are deploying
-    - `rest` seems to work fine
-    - `studio` runs without crashing, but gets errors whenever you try to run an SQL query
-        - This will probably work now that we have `postgres-meta` running, but we can't auth yet
-    - `storage` tries to run database migrations, but fails because there is no `postgres` role
-        - 👆 I think this is also why `studio` isn't working
+  - `rest` seems to work fine
+  - `studio` runs without crashing, but gets errors whenever you try to run an SQL query
+    - This will probably work now that we have `postgres-meta` running, but we can't auth yet
+  - `storage` tries to run database migrations, but fails because there is no `postgres` role
+    - 👆 I think this is also why `studio` isn't working
 
 ## Docker Compose Development Environment
 
 ### Quick Start
 
 **For Development (recommended):**
+
+Review DEVELOPMENT.md for detailed instructions and troubleshooting
+
+Bring up the environment
+
 ```bash
-# Review DEVELOPMENT.md for detailed instructions and troubleshooting
 cd docker
+cp .env.example .env 
 docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml up -d
-chmod +x test_supabase_health.sh
-./test_supabase_health.sh
+```
+
+Run tests
+
+```bash
+../test_supabase_health.sh
+```
+
+Stop and remove containers, volumes, and networks
+
+```bash
 docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml down  
-# Stop and remove containers, volumes, and networks
 ```
 
 
 ### Once running locally
+
 Supabase services will be available at `http://localhost:8082` (Studio), `http://localhost:8000` (API Gateway), and `http://localhost:4000` (Analytics).
 Username: supabase
 Password: this_password_is_insecure_and_should_be_updated
@@ -133,6 +148,7 @@ The Supabase Dashboard is protected with basic authentication. **You must change
 The Supabase stack uses several database initialization scripts that are automatically applied when the database container is first created:
 
 **Core Supabase Infrastructure** (`docker/volumes/db/`):
+
 - `_supabase.sql` - Creates the `_supabase` database for analytics
 - `logs.sql` - Creates the `_analytics` schema for Logflare analytics 
 - `roles.sql` - Sets up database roles and passwords
@@ -143,6 +159,7 @@ The Supabase stack uses several database initialization scripts that are automat
 - `debug_manual_fixes.sql` - Manual fixes for common setup issues
 
 **Development Seed Data** (`docker/dev/`):
+
 - `data.sql` - Contains sample tables, policies, and data for development
 
 ## Contributing
