@@ -42,7 +42,7 @@ The development environment includes the core services that match the production
 
 ## Environment Configuration
 
-The `.env` file contains all configuration variables that mirror the Terraform deployment:
+The `.env` file includes the configuration variables used by the Terraform deployment:
 
 ```bash
 # Core secrets (mirror terraform variables)
@@ -82,7 +82,7 @@ SMTP_HOST=localhost   # External SMTP in production
 ### Networking
 
 - **Development**: Docker internal networks
-- **Production**: Cloud Foundry service mesh with network policies
+- **Production**: Cloud Foundry routing with network policies
 
 ### SSL/TLS
 
@@ -335,11 +335,6 @@ When testing endpoints, these responses are **normal**:
 - **HTTP 200 (OK)**: Successful responses
 
 Only **connection failures** and **500 errors** indicate actual problems.
-## TODO
-
-- Deploy Kong as the API gateway in front of everything else
-- Allow injection of the bucket and postgres db in place of the module creating/managing them itself
-- Uncomment the `Deployment Architecture` section in this doc and make the diagram accurate
 
 ### Adding Custom Functions
 
@@ -395,19 +390,17 @@ This development environment mirrors the production Terraform deployment. Key Te
 
 ## CI/CD Integration
 
-The GitHub Actions workflow in `.github/workflows/supabase-consolidated.yml` handles:
+The GitHub Actions workflow in `.github/workflows/supabase-images.yml` handles:
 
 - Pulling all Supabase images weekly
 - Scanning for security vulnerabilities
 - Publishing scanned images to `ghcr.io/gsa-tts/cg-supabase/*`
-- Updating production deployments
 
 ## Contributing
 
 1. Test changes in the development environment first
-2. Ensure parity with production Terraform configuration
-3. Update this README when adding new services
-4. Scan any new images for security vulnerabilities
+2. Ensure parity in Terraform module
+3. Update this README when adding new services or changing processes
 
 ## Support
 
