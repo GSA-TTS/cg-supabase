@@ -37,28 +37,32 @@ module "supabase" {
     C4Context
       title Supabase on cloud.gov - blue items are managed by the module
       
-      Boundary(cloudgov, "cloud.gov environment") {
-          Boundary(target_space, "target space") {
-            System(kong, "Kong API Gateway", "API gateway & auth")
-            System(rest, "PostgREST", "REST API server")
-            System(studio, "Supabase Studio", "Admin dashboard")
-            System(storage, "Supabase Storage", "File storage API")
-            System(postgres_meta, "Postgres Meta", "DB metadata API")
-            System(postgres_db, "PostgreSQL", "Primary database")
-            System(s3_bucket, "S3 Bucket", "File storage")
-          }
-          
-          Boundary(proxy_space, "proxy space") {
-            System(https_proxy, "HTTPS Proxy", "External connectivity")
-          }
-      }
-      
       Boundary(external, "External") {
         System_Ext(client_app, "Client Application", "Your application")
         System_Ext(admin_user, "Admin User", "Developer/Admin")
       }
-
-      Rel(client_app, kong, "API requests", "HTTPS")
+      Boundary(cloudgov, "cloud.gov environment") {
+        Boundary(target_space, "target space") {
+          Boundary(routing, "routing") {
+            System(kong, "Kong API Gateway", "API gateway & auth")
+          }
+          Boundary(supabase_services, "Supabase services") {
+            System(rest, "PostgREST", "REST API server")
+            System(studio, "Supabase Studio", "Admin dashboard")
+            System(storage, "Supabase Storage", "File storage API")
+            System(postgres_meta, "Postgres Meta", "DB metadata API")
+          }
+          Boundary(cg_services, "brokered services") {
+            System(postgres_db, "PostgreSQL", "Primary database")
+            System(s3_bucket, "S3 Bucket", "File storage")
+          }
+        }
+        Boundary(proxy_space, "proxy space") {
+          System(https_proxy, "HTTPS Proxy", "External connectivity")
+        }
+      }
+      
+      Rel_R(client_app, kong, "API requests", "HTTPS")
       Rel(admin_user, studio, "Admin access", "HTTPS")
       Rel(kong, rest, "Routes API calls")
       Rel(kong, storage, "Routes storage calls")
@@ -69,6 +73,7 @@ module "supabase" {
       Rel(storage, s3_bucket, "File operations")
       Rel(storage, postgres_db, "Metadata storage")
       Rel(kong, https_proxy, "External requests")
+      UpdateLayoutConfig($c4ShapeInRow="5", $c4BoundaryInRow="3")
 ```
 
 1. Creates an egress proxy in the designated space
