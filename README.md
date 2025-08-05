@@ -4,11 +4,11 @@ A terraform module that manages a Supabase deployment on cloud.gov
 
 ## Why this project
 
-Your project probably needs a backend and a DB, and you probably want to avoid writing custom code wherever you can. 
+Your project probably needs a backend and a DB, and you probably want to avoid writing custom code wherever you can.
 
 [Supabase is a collection of open source components](https://github.com/supabase/supabase?tab=readme-ov-file#how-it-works) that together provide a featureful and secure backend that is customized directly from the schema and content of a Postgres database. It has a nice UI and DX for using all of its features, including schema migration. See [Supabase's documentation](https://supabase.com/docs) for more information.
 
-This module deploys Supabase on cloud.gov, providing a compliance- and production-oriented backend that you can use immediately. 
+This module deploys Supabase on cloud.gov, providing a compliance- and production-oriented backend that you can use immediately.
 
 ## Usage
 
@@ -112,6 +112,7 @@ Run tests
 ```
 
 Bring the environment down
+
 ```bash
 docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml down  
 ```
@@ -164,7 +165,7 @@ The Supabase stack uses several database initialization scripts that are automat
 **Core Supabase Infrastructure** (`docker/volumes/db/`):
 
 - `_supabase.sql` - Creates the `_supabase` database for analytics
-- `logs.sql` - Creates the `_analytics` schema for Logflare analytics 
+- `logs.sql` - Creates the `_analytics` schema for Logflare analytics
 - `roles.sql` - Sets up database roles and passwords
 - `jwt.sql` - Configures JWT settings
 - `webhooks.sql` - Sets up webhook functionality
