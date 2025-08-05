@@ -120,9 +120,15 @@ docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml down
 
 ### Once running locally
 
-Supabase services will be available at `http://localhost:8082` (Studio), `http://localhost:8000` (API Gateway), and `http://localhost:4000` (Analytics).
-Username: supabase
-Password: this_password_is_insecure_and_should_be_updated
+Supabase services will be available at 
+
+- `http://localhost:8000` (Studio and API Gateway)
+- `http://localhost:4000` (Analytics).
+
+Use these credentials (until the defaults are edited)
+
+- Username: supabase
+- Password: this_password_is_insecure_and_should_be_updated
 
 ### Updating Secrets
 
