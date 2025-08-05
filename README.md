@@ -111,16 +111,20 @@ Run tests
 ../test_supabase_health.sh
 ```
 
-Stop and remove containers, volumes, and networks
-
+Bring the environment down
 ```bash
 docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml down  
 ```
 
+Reset: remove containers, volumes, and networks
+
+```bash
+docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml down -v
+```
 
 ### Once running locally
 
-Supabase services will be available at 
+Supabase services will be available at:
 
 - `http://localhost:8000` (Studio and API Gateway)
 - `http://localhost:4000` (Analytics).
