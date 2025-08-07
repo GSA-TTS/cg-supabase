@@ -31,35 +31,49 @@ module "supabase" {
 }
 ```
 
-<!-- 
 ## Deployment architecture
 
 ```mermaid
     C4Context
-      title blue items are managed by the module
-      Boundary(system, "system boundary") {
-          Boundary(trusted_local_egress, "egress-controlled space", "trusted-local-egress ASG") {
-            System(credentials, "Proxy Credentials", "UPSI")
-            System_Ext(client1, "Client1", "a client")
+      title Supabase on cloud.gov - blue items are managed by the module
+      
+      Boundary(cloudgov, "cloud.gov environment") {
+          Boundary(target_space, "target space") {
+            System(kong, "Kong API Gateway", "API gateway & auth")
+            System(rest, "PostgREST", "REST API server")
+            System(studio, "Supabase Studio", "Admin dashboard")
+            System(storage, "Supabase Storage", "File storage API")
+            System(postgres_meta, "Postgres Meta", "DB metadata API")
+            System(postgres_db, "PostgreSQL", "Primary database")
+            System(s3_bucket, "S3 Bucket", "File storage")
           }
-
-          Boundary(public_egress, "egress-permitted space", "public-egress ASG") {
-            System(https_proxy, "web egress proxy", "proxy for HTTP/S connections")
+          
+          Boundary(proxy_space, "proxy space") {
+            System(https_proxy, "HTTPS Proxy", "External connectivity")
           }
       }
       
-      Boundary(external_boundary, "external boundary") {
-        System_Ext(external_service, "external service", "service that the application relies on")
+      Boundary(external, "External") {
+        System_Ext(client_app, "Client Application", "Your application")
+        System_Ext(admin_user, "Admin User", "Developer/Admin")
       }
 
-      Rel(credentials, client1, "delivers credentials", "VCAP_SERVICES")
-      Rel(client1, https_proxy, "makes request", "HTTP/S")
-      Rel(https_proxy, external_service, "proxies request", "HTTP/S")
+      Rel(client_app, kong, "API requests", "HTTPS")
+      Rel(admin_user, studio, "Admin access", "HTTPS")
+      Rel(kong, rest, "Routes API calls")
+      Rel(kong, storage, "Routes storage calls")
+      Rel(kong, studio, "Routes admin calls")
+      Rel(rest, postgres_db, "Queries")
+      Rel(studio, postgres_meta, "Schema queries")
+      Rel(postgres_meta, postgres_db, "Metadata queries")
+      Rel(storage, s3_bucket, "File operations")
+      Rel(storage, postgres_db, "Metadata storage")
+      Rel(kong, https_proxy, "External requests")
 ```
+
 1. Creates an egress proxy in the designated space
 2. Adds network-policies so that clients can reach the proxy
 3. Creates a user-provided service instance in the client space with credentials
- -->
 
 ## STATUS
 
@@ -70,11 +84,66 @@ module "supabase" {
     - `storage` tries to run database migrations, but fails because there is no `postgres` role
         - 👆 I think this is also why `studio` isn't working
 
-## TODO
+## Docker Compose Development Environment
 
-- Deploy Kong as the API gateway in front of everything else
-- Allow injection of the bucket and postgres db in place of the module creating/managing them itself
-- Uncomment the `Deployment Architecture` section in this doc and make the diagram accurate
+### Quick Start
+
+**For Development (recommended):**
+```bash
+# Review DEVELOPMENT.md for detailed instructions and troubleshooting
+cd docker
+docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml up -d
+chmod +x test_supabase_health.sh
+./test_supabase_health.sh
+docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml down  
+# Stop and remove containers, volumes, and networks
+```
+
+
+### Once running locally
+Supabase services will be available at `http://localhost:8082` (Studio), `http://localhost:8000` (API Gateway), and `http://localhost:4000` (Analytics).
+Username: supabase
+Password: this_password_is_insecure_and_should_be_updated
+
+### Updating Secrets
+
+The `.env` file in the `docker/` directory contains environment variables required for the Docker Compose setup. This file holds sensitive data such as database passwords, API keys, and service credentials. **Always update these values before running in production, and rerun Docker Compose to apply any changes.**
+
+**Key variables to configure:**
+
+- `POSTGRES_PASSWORD`: Password for the `postgres` database role.
+- `JWT_SECRET`: Secret used by PostgREST, GoTrue, and other services for authentication.
+- `SITE_URL`: The base URL of your deployment.
+- `SMTP_*`: Credentials for your SMTP mail server (can use any SMTP provider).
+- `POOLER_TENANT_ID`: Tenant ID for the Supavisor pooler in your connection string.
+
+After updating any values, restart the relevant services for changes to take effect.
+
+#### Dashboard Authentication
+
+The Supabase Dashboard is protected with basic authentication. **You must change the default credentials before using in production.** Update these values in `docker/.env`:
+
+- `DASHBOARD_USERNAME`: Username for Dashboard login.
+- `DASHBOARD_PASSWORD`: Password for Dashboard login.
+
+**Note:** Restart Docker Compose after making changes to the `.env` file to ensure all services pick up the new configuration.
+
+### Database Initialization
+
+The Supabase stack uses several database initialization scripts that are automatically applied when the database container is first created:
+
+**Core Supabase Infrastructure** (`docker/volumes/db/`):
+- `_supabase.sql` - Creates the `_supabase` database for analytics
+- `logs.sql` - Creates the `_analytics` schema for Logflare analytics 
+- `roles.sql` - Sets up database roles and passwords
+- `jwt.sql` - Configures JWT settings
+- `webhooks.sql` - Sets up webhook functionality
+- `realtime.sql` - Configures realtime subscriptions
+- `pooler.sql` - Sets up connection pooling
+- `debug_manual_fixes.sql` - Manual fixes for common setup issues
+
+**Development Seed Data** (`docker/dev/`):
+- `data.sql` - Contains sample tables, policies, and data for development
 
 ## Contributing
 
