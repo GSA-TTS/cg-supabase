@@ -203,7 +203,7 @@ fi
 
 # Test Edge Functions (if exposed)  
 total_checks=$((total_checks + 1))
-if check_http_endpoint "Edge Functions" "http://localhost:8001/_internal/health" "200 404"; then
+if check_http_endpoint "Edge Functions" "http://localhost:9000/_internal/health" "200 404"; then
     passed_checks=$((passed_checks + 1))
 else
     failed_checks=$((failed_checks + 1))
