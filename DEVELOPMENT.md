@@ -5,17 +5,20 @@ This directory contains a complete Docker Compose setup that mirrors the product
 ## Quick Start
 
 ```bash
-# Clone and setup
+# Clone and setup 
 git clone [repository-url]
 cd cg-supabase
 cd docker
 
 # Setup environment (creates .env file and starts services)
-chmod +x setup-dev.sh
-./setup-dev.sh
+cp .env.example .env
+source .env
+./setup.sh # or manually run $ docker compose up -d
 
 # Access Supabase Studio
 open http://localhost:8000
+
+./reset.sh  # Optional: Reset and remove the database and volumes 
 ```
 
 ## Architecture Overview
