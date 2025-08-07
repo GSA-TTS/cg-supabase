@@ -8,8 +8,10 @@ This directory contains a complete Docker Compose setup that mirrors the product
 # Clone and setup
 git clone [repository-url]
 cd cg-supabase
+cd docker
 
 # Setup environment (creates .env file and starts services)
+chmod +x setup-dev.sh
 ./setup-dev.sh
 
 # Access Supabase Studio
