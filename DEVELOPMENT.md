@@ -5,20 +5,24 @@ This directory contains a complete Docker Compose setup that mirrors the product
 ## Quick Start
 
 ```bash
-# Clone and setup 
-git clone [repository-url]
+# Clone and setup
+git clone https://github.com/gsa-tts/cg-supabase.git
 cd cg-supabase
 cd docker
 
 # Setup environment (creates .env file and starts services)
 cp .env.example .env
 source .env
-./setup.sh # or manually run $ docker compose up -d
+./setup.sh # or manually run $docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml up
 
 # Access Supabase Studio
 open http://localhost:8000
+Username: supabase
+Password: this_password_is_insecure_and_should_be_updated
+See if changed [.env](.env)
 
-./reset.sh  # Optional: Reset and remove the database and volumes 
+./reset.sh  # Optional: Reset and remove the database and volumes
+# or manually run $docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml down 
 ```
 
 ## Architecture Overview

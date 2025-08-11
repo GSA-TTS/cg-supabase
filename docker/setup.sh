@@ -47,4 +47,4 @@ while true; do
   fi
 done
 
-echo "Setup complete! Access Supabase Studio at http://localhost:8082 and Mail at http://localhost:9001."
+echo "Setup complete! Access Supabase Studio at http://localhost:8000, Logs at http://localhost:4000, and Mail at http://localhost:9001."

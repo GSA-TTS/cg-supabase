@@ -86,24 +86,7 @@ module "supabase" {
 
 ## Docker Compose Development Environment
 
-### Quick Start
-
-**For Development (recommended):**
-```bash
-# Review DEVELOPMENT.md for detailed instructions and troubleshooting
-cd docker
-docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml up -d
-chmod +x test_supabase_health.sh
-./test_supabase_health.sh
-docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml down  
-# Stop and remove containers, volumes, and networks
-```
-
-
-### Once running locally
-Supabase services will be available at `http://localhost:8082` (Studio), `http://localhost:8000` (API Gateway), and `http://localhost:4000` (Analytics).
-Username: supabase
-Password: this_password_is_insecure_and_should_be_updated
+See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed instructions on setting up and using the Docker Compose development environment.
 
 ### Updating Secrets
 
