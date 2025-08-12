@@ -17,9 +17,7 @@ source .env
 
 # Access Supabase Studio
 open http://localhost:8000
-Username: supabase
-Password: this_password_is_insecure_and_should_be_updated
-See if changed [.env](.env)
+#See .env .env.example for username/password
 
 ./reset.sh  # Optional: Reset and remove the database and volumes
 # or manually run $docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml down 
