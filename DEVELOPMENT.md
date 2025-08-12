@@ -17,7 +17,7 @@ source .env
 
 # Access Supabase Studio
 open http://localhost:8000
-#See .env .env.example for username/password
+#See .env for username/password
 
 ./reset.sh  # Optional: Reset and remove the database and volumes
 # or manually run $docker compose -f docker-compose.yml -f ./dev/docker-compose.dev.yml down 
