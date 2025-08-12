@@ -11,7 +11,7 @@ services:
 
   studio:
     container_name: supabase-studio
-    image: supabase/studio:2025.06.30-sha-6f5982d
+    image: ghcr.io/gsa-tts/cg-supabase/studio:scanned
     restart: unless-stopped
     healthcheck:
       test:
@@ -51,7 +51,7 @@ services:
 
   kong:
     container_name: supabase-kong
-    image: kong:2.8.1
+    image: ghcr.io/gsa-tts/cg-supabase/kong:scanned
     restart: unless-stopped
     ports:
       - ${KONG_HTTP_PORT}:8000/tcp
@@ -79,7 +79,7 @@ services:
 
   auth:
     container_name: supabase-auth
-    image: supabase/gotrue:v2.177.0
+    image: ghcr.io/gsa-tts/cg-supabase/auth:scanned
     restart: unless-stopped
     healthcheck:
       test:
@@ -162,7 +162,7 @@ services:
 
   rest:
     container_name: supabase-rest
-    image: postgrest/postgrest:v12.2.12
+    image: ghcr.io/gsa-tts/cg-supabase/rest:scanned
     restart: unless-stopped
     depends_on:
       db:
@@ -186,7 +186,7 @@ services:
   realtime:
     # This container name looks inconsistent but is correct because realtime constructs tenant id by parsing the subdomain
     container_name: supabase-realtime
-    image: supabase/realtime:v2.34.47
+    image: ghcr.io/gsa-tts/cg-supabase/realtime:scanned
     restart: unless-stopped
     depends_on:
       db:
@@ -205,7 +205,7 @@ services:
           "/dev/null",
           "-H",
           "Authorization: Bearer ${ANON_KEY}",
-          "http://localhost:4000/api/tenants/realtime-dev/health"
+          "http://localhost:4000/endpoints/1"
         ]
       timeout: 5s
       interval: 5s
@@ -231,7 +231,7 @@ services:
   # To use S3 backed storage: docker compose -f docker-compose.yml -f docker-compose.s3.yml up
   storage:
     container_name: supabase-storage
-    image: supabase/storage-api:v1.25.7
+    image: ghcr.io/gsa-tts/cg-supabase/storage:scanned
     restart: unless-stopped
     volumes:
       - ./volumes/storage:/var/lib/storage:z
@@ -274,7 +274,7 @@ services:
 
   imgproxy:
     container_name: supabase-imgproxy
-    image: darthsim/imgproxy:v3.8.0
+    image: ghcr.io/gsa-tts/cg-supabase/imgproxy:scanned
     restart: unless-stopped
     volumes:
       - ./volumes/storage:/var/lib/storage:z
@@ -296,7 +296,7 @@ services:
 
   meta:
     container_name: supabase-meta
-    image: supabase/postgres-meta:v0.91.0
+    image: ghcr.io/gsa-tts/cg-supabase/meta:scanned
     restart: unless-stopped
     depends_on:
       db:
@@ -314,7 +314,7 @@ services:
 
   functions:
     container_name: supabase-edge-functions
-    image: supabase/edge-runtime:v1.67.4
+    image: ghcr.io/gsa-tts/cg-supabase/functions:scanned
     restart: unless-stopped
     volumes:
       - ./volumes/functions:/home/deno/functions:Z
@@ -338,7 +338,7 @@ services:
 
   analytics:
     container_name: supabase-analytics
-    image: supabase/logflare:1.14.2
+    image: ghcr.io/gsa-tts/cg-supabase/analytics:scanned
     restart: unless-stopped
     ports:
       - 4000:4000
@@ -388,7 +388,7 @@ services:
   # Comment out everything below this point if you are using an external Postgres database
   db:
     container_name: supabase-db
-    image: supabase/postgres:15.8.1.060
+    image: ghcr.io/gsa-tts/cg-supabase/postgres:scanned
     restart: unless-stopped
     volumes:
       # Database initialization scripts (executed in alphabetical order):
@@ -451,7 +451,7 @@ services:
 
   vector:
     container_name: supabase-vector
-    image: timberio/vector:0.28.1-alpine
+    image: ghcr.io/gsa-tts/cg-supabase/vector:scanned
     restart: unless-stopped
     volumes:
       - ./volumes/logs/vector.yml:/etc/vector/vector.yml:ro,z
@@ -482,7 +482,7 @@ services:
   # Update the DATABASE_URL if you are using an external Postgres database
   supavisor:
     container_name: supabase-pooler
-    image: supabase/supavisor:2.5.7
+    image: ghcr.io/gsa-tts/cg-supabase/pooler:scanned
     restart: unless-stopped
     ports:
       - "${POSTGRES_PORT}:5432"
@@ -495,14 +495,11 @@ services:
           "CMD",
           "curl",
           "-sSfL",
-          "--head",
-          "-o",
-          "/dev/null",
           "http://127.0.0.1:4000/api/health"
         ]
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 10s
+      retries: 10
     depends_on:
       db:
         condition: service_healthy
@@ -515,8 +512,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       DATABASE_URL: ecto://supabase_admin:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/_supabase
       CLUSTER_POSTGRES: "true"
-      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
-      VAULT_ENC_KEY: ${VAULT_ENC_KEY}
+      # Use at least 32 random bytes (base64-encoded) for these keys
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:-"$(openssl rand -base64 32)"}
+      VAULT_ENC_KEY: ${VAULT_ENC_KEY:-"$(openssl rand -base64 32)"}
       API_JWT_SECRET: ${JWT_SECRET}
       METRICS_JWT_SECRET: ${JWT_SECRET}
       REGION: local
@@ -530,7 +528,7 @@ services:
       [
         "/bin/sh",
         "-c",
-        "/app/bin/migrate && /app/bin/supavisor eval \"$$(cat /etc/pooler/pooler.exs)\" && /app/bin/server"
+        "if [ -z \"$SECRET_KEY_BASE\" ]; then export SECRET_KEY_BASE=$(openssl rand -base64 32); fi; if [ -z \"$VAULT_ENC_KEY\" ]; then export VAULT_ENC_KEY=$(openssl rand -base64 32); fi; /app/bin/migrate && /app/bin/supavisor eval \"$$(cat /etc/pooler/pooler.exs)\" && /app/bin/server"
       ]
 
 volumes:

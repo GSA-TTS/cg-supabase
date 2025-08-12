@@ -1,3 +1,11 @@
+---
+description: 'Description of the custom chat mode.'
+tools: ['codebase', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'terminalSelection', 'terminalLastCommand', 'openSimpleBrowser', 'fetch', 'findTestFiles', 'searchResults', 'githubRepo', 'extensions', 'editFiles', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks']
+---
+Define the purpose of this chat mode and how AI should behave: response style, available tools, focus areas, and any mode-specific instructions or constraints.
+
+When generating any new code always prepare unit and integration tests. Ensure all changes take into account the parity between the /docker setup and the terraform code.
+
 # cg-supabase Project Context
 
 ## Overview
