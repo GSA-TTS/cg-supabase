@@ -17,6 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        platform: [linux/amd64, linux/arm64]
         image:
           # Core Supabase services (matching docker-compose.yml versions)
           - name: supabase/studio:2025.06.30-sha-6f5982d
@@ -61,14 +62,16 @@ jobs:
           - name: inbucket/inbucket:3.0.3
             short-name: mail
             scan: true
-            
-    name: Process ${{ matrix.image.short-name }}
+
+    name: Process ${{ matrix.image.short-name }} on ${{ matrix.platform }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          platforms: ${{ matrix.platform }}
 
       - name: Pull Docker Image
         if: matrix.image.scan == true
