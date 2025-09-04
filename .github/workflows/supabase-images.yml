@@ -79,7 +79,7 @@ jobs:
 
       - name: Scan Image
         if: matrix.image.scan == true
-        uses: aquasecurity/trivy-action@0.32.0
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           scan-type: 'image'
           image-ref: ${{ matrix.image.name }}
