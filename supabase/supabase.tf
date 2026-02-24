@@ -9,7 +9,42 @@ locals {
   # A generated slug for use in domain names to avoid collisions, etc.
   slug = "-${trim(replace(replace(lower(var.cf_space_name), "/[^\\w_]/", "-"), "/-+/", "-"), "-")}"
 
+  # ---------------------------------------------------------------------------
+  # Effective secrets: use provided vars when non-empty, otherwise auto-generate.
+  # jwt_secret drives anon_key and service_role_key; all three can be overridden.
+  # ---------------------------------------------------------------------------
+  effective_jwt_secret      = var.jwt_secret != "" ? var.jwt_secret : random_password.jwt_secret.result
+  effective_anon_key        = var.anon_key != "" ? var.anon_key : data.external.anon_jwt.result["jwt"]
+  effective_service_role_key = var.service_role_key != "" ? var.service_role_key : data.external.service_role_jwt.result["jwt"]
 }
+
+# ---------------------------------------------------------------------------
+# Auto-generated JWT secret (used when var.jwt_secret is not provided)
+# ---------------------------------------------------------------------------
+resource "random_password" "jwt_secret" {
+  length  = 40
+  special = false
+}
+
+data "external" "anon_jwt" {
+  program = ["python3", "${path.module}/../scripts/generate_jwt.py"]
+  query = {
+    secret = local.effective_jwt_secret
+    role   = "anon"
+  }
+}
+
+data "external" "service_role_jwt" {
+  program = ["python3", "${path.module}/../scripts/generate_jwt.py"]
+  query = {
+    secret = local.effective_jwt_secret
+    role   = "service_role"
+  }
+}
+
+# ---------------------------------------------------------------------------
+# Core infrastructure
+# ---------------------------------------------------------------------------
 
 # The beating heart of all Supabase services is a Postgres database
 module "database" {
@@ -20,24 +55,6 @@ module "database" {
   rds_plan_name = var.database_plan
 }
 
-# Make sure the space can reach brokered services
-data "cloudfoundry_asg" "trusted-local-networks" {
-  name = "trusted_local_networks_egress"
-}
-
-data "cloudfoundry_space" "space" {
-  org_name = var.cf_org_name
-  name     = var.cf_space_name
-}
-
-# TODO: This doesn't seem to be working; it gets a 403 response
-# resource "cloudfoundry_space_asgs" "asgs" {
-#   space = data.cloudfoundry_space.space.id
-#   staging_asgs = [ data.cloudfoundry_asg.trusted-local-networks.id ]
-#   running_asgs = [ data.cloudfoundry_asg.trusted-local-networks.id ]
-# }
-
-# Stuff used for apps in this space
 data "cloudfoundry_space" "apps" {
   org_name = var.cf_org_name
   name     = var.cf_space_name

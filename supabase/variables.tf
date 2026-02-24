@@ -89,19 +89,35 @@ variable "studio_memory" {
 
 variable "jwt_secret" {
   type        = string
-  description = "the JWT signing secret for TODO"
+  description = "40-char JWT signing secret. If empty, one is auto-generated via random_password."
+  default     = ""
   sensitive   = true
 }
 
 variable "anon_key" {
   type        = string
-  description = "the JWT signing secret for TODO"
+  description = "JWT for the anon role. If empty, auto-generated from jwt_secret using scripts/generate_jwt.py."
+  default     = ""
   sensitive   = true
 }
 
 variable "service_role_key" {
   type        = string
-  description = "the JWT signing secret for TODO"
+  description = "JWT for the service_role role. If empty, auto-generated from jwt_secret using scripts/generate_jwt.py."
+  default     = ""
+  sensitive   = true
+}
+
+variable "docker_username" {
+  type        = string
+  description = "Docker Hub username for authenticated image pulls (bypasses anonymous rate limits). Optional."
+  default     = ""
+}
+
+variable "docker_password" {
+  type        = string
+  description = "Docker Hub password or PAT for authenticated image pulls. Optional."
+  default     = ""
   sensitive   = true
 }
 
