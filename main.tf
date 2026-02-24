@@ -3,11 +3,8 @@ module "supabase" {
   cf_org_name   = "gsa-tts-oros-sorndashboard"
   cf_space_name = "supabase"
 
-  # TODO - Make use of injected proxy, logdrain, S3, and Postgres info
-  # https_proxy       = module.https-proxy.https_proxy
-  # s3_id             = module.s3-private.bucket_id
-  # logdrain_id       = module.cg-logshipper.logdrain_service_id
-
+  # JWT secrets are optional — omit to auto-generate, or provide to reuse existing values.
+  # See vars.auto.tfvars-example for the full set of configurable options.
   jwt_secret       = var.jwt_secret
   anon_key         = var.anon_key
   service_role_key = var.service_role_key
