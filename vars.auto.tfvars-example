@@ -1,5 +1,27 @@
-cf_user          = "your_cf_user"
-cf_password      = "your_cf_password"
-jwt_secret       = "your_jwt_secret"
-anon_key         = "your_anon_key"
-service_role_key = "your_service_role_key"
+# Copy this file to vars.auto.tfvars and fill in one auth option.
+# All JWT secrets are optional — they will be auto-generated if omitted.
+
+# ---------------------------------------------------------------------------
+# Option A: Service account (recommended for CI/CD)
+# ---------------------------------------------------------------------------
+# cf_client_id     = "your-oauth-client-id"
+# cf_client_secret = "your-oauth-client-secret"
+
+# ---------------------------------------------------------------------------
+# Option B: SSO passcode (interactive — expires quickly, use for one-off applies)
+# Get the passcode at: https://login.fr.cloud.gov/passcode
+# ---------------------------------------------------------------------------
+# cf_sso_passcode = "your-one-time-passcode"
+
+# ---------------------------------------------------------------------------
+# Option C: Username/password (legacy deployer account)
+# ---------------------------------------------------------------------------
+# cf_user     = "your_cf_user"
+# cf_password = "your_cf_password"
+
+# ---------------------------------------------------------------------------
+# JWT secrets — omit to auto-generate, or provide to reuse existing values
+# ---------------------------------------------------------------------------
+# jwt_secret       = "your-40-char-jwt-secret"
+# anon_key         = "your-anon-jwt"
+# service_role_key = "your-service-role-jwt"
