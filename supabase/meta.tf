@@ -1,11 +1,7 @@
 locals {
-  # TODO: Parameterize which image to use, with this as the default
-  # TODO: Once Supabase publishes an image without CRITICAL and HIGH findings,
-  #    switch to ghcr.io/gsa-tts/cg-supabase/postgres-meta:scanned
-  meta_image             = "ghcr.io/supabase/postgres-meta"
-  meta_image_tag         = "v0.81.2"
-  meta_url               = "https://${cloudfoundry_route.supabase-meta.endpoint}:61443"
-  meta_connection_string = "${cloudfoundry_service_key.meta.credentials.uri}?sslmode=require"
+  meta_image     = "ghcr.io/gsa-tts/cg-supabase/meta"
+  meta_image_tag = "scanned"
+  meta_url       = "https://${cloudfoundry_route.supabase-meta.endpoint}:61443"
 }
 
 resource "cloudfoundry_route" "supabase-meta" {
@@ -32,26 +28,30 @@ resource "cloudfoundry_app" "supabase-meta" {
   disk_quota   = 1024
   instances    = var.meta_instances
   strategy     = "rolling"
+
+  health_check_type              = "http"
+  health_check_http_endpoint     = "/"
+  health_check_invocation_timeout = 30
+
   routes {
     route = cloudfoundry_route.supabase-meta.id
   }
-  health_check_type          = "http"
-  health_check_http_endpoint = "/"
-  
-  command = <<-EOT
-    # Make sure the Cloud Foundry-provided CA is recognized when making TLS connections
-    cat /etc/cf-system-certificates/* > /usr/local/share/ca-certificates/cf-system-certificates.crt
-    /usr/sbin/update-ca-certificates
-    # Now call the expected ENTRYPOINT and CMD
-    cd /usr/src/app && /usr/local/bin/docker-entrypoint.sh node dist/server/server.js
-    EOT
-  environment = {
-    # Upstream docs: https://github.com/supabase/postgres-meta/blob/master/README.md#quickstart
 
-    # TODO: Move the secrets into a bound UPSI, and parse them out of
-    # VCAP_SERVICES with jq at startup
-    PG_META_DB_URL = local.meta_connection_string
-    PG_META_HOST   = "0.0.0.0"
-    PG_META_PORT   = 8080
+  environment = {
+    # https://github.com/supabase/postgres-meta#quickstart
+    PG_META_PORT        = "8080"
+    PG_META_DB_HOST     = cloudfoundry_service_key.meta.credentials.host
+    PG_META_DB_PORT     = tostring(cloudfoundry_service_key.meta.credentials.port)
+    PG_META_DB_NAME     = cloudfoundry_service_key.meta.credentials.db_name
+    PG_META_DB_USER     = cloudfoundry_service_key.meta.credentials.username
+    PG_META_DB_PASSWORD = cloudfoundry_service_key.meta.credentials.password
+    # cloud.gov RDS requires SSL. node-postgres (pg) does not read the libpq PGSSLMODE
+    # env var — use pg-meta's own SSL env var instead (available since pg-meta v0.85+).
+    # NODE_TLS_REJECT_UNAUTHORIZED disables cert-chain validation against the self-signed
+    # intermediate CA used by cloud.gov RDS.
+    PG_META_DB_SSL_MODE          = "require"
+    NODE_TLS_REJECT_UNAUTHORIZED = "0"
   }
+
+  depends_on = [cloudfoundry_service_key.meta]
 }
