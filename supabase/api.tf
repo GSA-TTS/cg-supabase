@@ -1,13 +1,11 @@
 locals {
   api_url = "https://${cloudfoundry_route.supabase-api.endpoint}"
 
-  # TODO: Generate these; using static strings to match the docker-compose
-  # case until everything's working.
   api_username = "supabase"
-  api_password = "this_password_is_insecure_and_should_be_updated"
+  api_password = random_password.dashboard_password.result
 
   api_app_id = module.kong.app_id
-  # Upstream Supabase Kong config reference: 
+  # Upstream Supabase Kong config reference:
   # https://github.com/supabase/supabase/blob/master/docker/volumes/api/kong.yml
   kong_config = <<-EOT
     _format_version: '2.1'
@@ -20,10 +18,10 @@ locals {
       - username: DASHBOARD
       - username: anon
         keyauth_credentials:
-          - key: ${var.anon_key}
+          - key: ${local.effective_anon_key}
       - username: service_role
         keyauth_credentials:
-          - key: ${var.service_role_key}
+          - key: ${local.effective_service_role_key}
 
     ###
     ### Access Control List
@@ -143,47 +141,9 @@ locals {
                 - admin
                 - anon
 
-      ## Secure Realtime routes
-      - name: realtime-v1-ws
-        _comment: 'Realtime: /realtime/v1/* -> ws://realtime:4000/socket/*'
-        url: http://realtime-dev.supabase-realtime:4000/socket
-        protocol: ws
-        routes:
-          - name: realtime-v1-ws
-            strip_path: true
-            paths:
-              - /realtime/v1/
-        plugins:
-          - name: cors
-          - name: key-auth
-            config:
-              hide_credentials: false
-          - name: acl
-            config:
-              hide_groups_header: true
-              allow:
-                - admin
-                - anon
-      - name: realtime-v1-rest
-        _comment: 'Realtime: /realtime/v1/* -> ws://realtime:4000/socket/*'
-        url: http://realtime-dev.supabase-realtime:4000/api
-        protocol: http
-        routes:
-          - name: realtime-v1-rest
-            strip_path: true
-            paths:
-              - /realtime/v1/api
-        plugins:
-          - name: cors
-          - name: key-auth
-            config:
-              hide_credentials: false
-          - name: acl
-            config:
-              hide_groups_header: true
-              allow:
-                - admin
-                - anon
+      ## Realtime routes — disabled: cloud.gov CF containers lack IPv6 support
+      ## and supabase/realtime hardcodes socket_opts: [:inet6] with no env override.
+      ## Remove the comment markers below if deploying on a platform with IPv6.
       ## Storage routes: the storage server manages its own auth
       - name: storage-v1
         _comment: 'Storage: /storage/v1/* -> ${local.storage_url}/*'
@@ -196,27 +156,27 @@ locals {
         plugins:
           - name: cors
 
-      ## Edge Functions routes
-      - name: functions-v1
-        _comment: 'Edge Functions: /functions/v1/* -> http://functions:9000/*'
-        url: http://functions:9000/
-        routes:
-          - name: functions-v1-all
-            strip_path: true
-            paths:
-              - /functions/v1/
-        plugins:
-          - name: cors
+      ## Edge Functions routes — not deployed in this Terraform module.
+      ## Uncomment and set url to the CF internal route if deploying an edge functions app.
+      # - name: functions-v1
+      #   url: https://<functions-hostname>.apps.internal:61443/
+      #   routes:
+      #     - name: functions-v1-all
+      #       strip_path: true
+      #       paths:
+      #         - /functions/v1/
+      #   plugins:
+      #     - name: cors
 
-      ## Analytics routes
-      - name: analytics-v1
-        _comment: 'Analytics: /analytics/v1/* -> http://logflare:4000/*'
-        url: http://analytics:4000/
-        routes:
-          - name: analytics-v1-all
-            strip_path: true
-            paths:
-              - /analytics/v1/
+      ## Analytics routes — not deployed in this Terraform module.
+      ## Uncomment and set url to the CF internal route if deploying an analytics app.
+      # - name: analytics-v1
+      #   url: https://<analytics-hostname>.apps.internal:61443/
+      #   routes:
+      #     - name: analytics-v1-all
+      #       strip_path: true
+      #       paths:
+      #         - /analytics/v1/
 
       ## Secure Database routes
       - name: meta
@@ -258,7 +218,7 @@ locals {
 module "kong" {
   source    = "./kong"
   name      = local.api_app_name
-  space     = data.cloudfoundry_space.space.id
+  space     = data.cloudfoundry_space.apps.id
   instances = var.api_instances
   memory    = var.api_memory
 
@@ -278,11 +238,11 @@ resource "cloudfoundry_route" "supabase-api" {
 }
 
 resource "cloudfoundry_network_policy" "api-backends" {
-  # policy {
-  #   source_app      = local.api_app_id
-  #   destination_app = cloudfoundry_app.supabase-auth.id
-  #   port            = "61443"
-  # }
+  policy {
+    source_app      = local.api_app_id
+    destination_app = cloudfoundry_app.supabase-auth.id
+    port            = "61443"
+  }
   policy {
     source_app      = local.api_app_id
     destination_app = cloudfoundry_app.supabase-meta.id
@@ -303,4 +263,10 @@ resource "cloudfoundry_network_policy" "api-backends" {
     destination_app = cloudfoundry_app.supabase-studio.id
     port            = "61443"
   }
-}  
+}
+
+# Auto-generated dashboard password for Kong basic-auth
+resource "random_password" "dashboard_password" {
+  length  = 24
+  special = false
+}
