@@ -1,9 +1,9 @@
 locals {
-  # TODO: Parameterize which image to use, with this as the default
-  rest_image             = "ghcr.io/gsa-tts/cg-supabase/rest"
-  rest_image_tag         = "scanned"
-  rest_url               = "https://${cloudfoundry_route.supabase-rest.endpoint}:61443"
-  rest_connection_string = "${cloudfoundry_service_key.rest.credentials.uri}?sslmode=require"
+  rest_image  = "ghcr.io/gsa-tts/cg-supabase/rest"
+  rest_image_tag = "scanned"
+  rest_url    = "https://${cloudfoundry_route.supabase-rest.endpoint}:61443"
+  # PostgREST is a Go service — sslmode=prefer encrypts without requiring cert validation
+  rest_connection_string = "${cloudfoundry_service_key.rest.credentials.uri}?sslmode=prefer"
 }
 
 resource "cloudfoundry_route" "supabase-rest" {
@@ -30,20 +30,23 @@ resource "cloudfoundry_app" "supabase-rest" {
   disk_quota   = 256
   instances    = var.rest_instances
   strategy     = "rolling"
+
+  health_check_type = "port"
+
   routes {
     route = cloudfoundry_route.supabase-rest.id
   }
 
   environment = {
-    # Upstream docs: https://postgrest.org/en/v12/references/configuration.html
-
-    # TODO: Move the secrets into a bound UPSI, and parse them out of
-    # VCAP_SERVICES with jq at startup
-    PGRST_DB_URI : local.rest_connection_string
-    PGRST_JWT_SECRET : var.jwt_secret
-
-    PGRST_DB_SCHEMAS : "public,storage,graphql_public"
-    PGRST_DB_ANON_ROLE : "anon"
-    PGRST_DB_MAX_ROWS : 20000
+    # https://postgrest.org/en/v12/references/configuration.html
+    PGRST_DB_URI             = local.rest_connection_string
+    PGRST_DB_SCHEMAS         = "public,storage,graphql_public"
+    PGRST_DB_ANON_ROLE       = "anon"
+    PGRST_DB_USE_LEGACY_GUCS = "false"
+    PGRST_DB_MAX_ROWS        = "20000"
+    PGRST_JWT_SECRET         = local.effective_jwt_secret
+    PGRST_SERVER_PORT        = "3000"
   }
+
+  depends_on = [cloudfoundry_service_key.rest]
 }
