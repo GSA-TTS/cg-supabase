@@ -89,8 +89,7 @@ resource "null_resource" "db_schema_init" {
 # The beating heart of all Supabase services is a Postgres database
 module "database" {
   source        = "github.com/GSA-TTS/terraform-cloudgov//database?ref=v2.0.0"
-  cf_org_name   = var.cf_org_name
-  cf_space_name = var.cf_space_name
+  cf_space_id   = data.cloudfoundry_space.apps.id
   name          = "supabase-db"
   rds_plan_name = var.database_plan
 }

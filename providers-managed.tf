@@ -33,9 +33,9 @@ terraform {
 # ---------------------------------------------------------------------------
 provider "cloudfoundry" {
   api_url          = "https://api.fr.cloud.gov"
-  user             = var.cf_user
-  password         = var.cf_password
-  sso_passcode     = var.cf_sso_passcode
-  cf_client_id     = var.cf_client_id
-  cf_client_secret = var.cf_client_secret
+  user             = var.cf_user != "" ? var.cf_user : null
+  password         = var.cf_password != "" ? var.cf_password : null
+  sso_passcode     = var.cf_sso_passcode != "" ? var.cf_sso_passcode : null
+  cf_client_id     = var.cf_client_id != "" ? var.cf_client_id : null
+  cf_client_secret = var.cf_client_secret != "" ? var.cf_client_secret : null
 }

@@ -21,10 +21,9 @@ resource "cloudfoundry_service_key" "storage" {
 module "s3-private" {
   source = "github.com/GSA-TTS/terraform-cloudgov//s3?ref=v2.0.0"
 
-  cf_org_name   = var.cf_org_name
-  cf_space_name = var.cf_space_name
-  name          = "supabase-private-s3"
-  s3_plan_name  = "basic"
+  cf_space_id  = data.cloudfoundry_space.apps.id
+  name         = "supabase-private-s3"
+  s3_plan_name = "basic"
 }
 
 resource "cloudfoundry_service_key" "s3" {
