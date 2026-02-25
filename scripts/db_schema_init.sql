@@ -1,51 +1,21 @@
-#!/usr/bin/env bash
-# ---------------------------------------------------------------------------
-# cloudgov_db_prep.sh  —  One-time Postgres schema prep for Supabase on cloud.gov
-#
-# Run this AFTER terraform apply (services will be deployed but apps may be
-# crash-looping until the schema exists). Once this script completes,
-# restart the affected apps:
-#   cf restart supabase-auth
-#   cf restart supabase-storage
-#
-# Prerequisites:
-#   - cf CLI logged in and targeting gsa-tts-oros-sorndashboard / supabase
-#       cf login -a https://api.fr.cloud.gov --sso
-#       cf target -o gsa-tts-oros-sorndashboard -s supabase
-#   - cf connect-to-service plugin installed:
-#       cf install-plugin -r CF-Community "connect-to-service"
-#   - psql in PATH
-# ---------------------------------------------------------------------------
-set -euo pipefail
-
-DB_SERVICE="supabase-db"
-KEY_NAME="meta"
-
-echo "==> Fetching credentials for service: ${DB_SERVICE} (key: ${KEY_NAME})"
-
-KEY_JSON=$(cf service-key "${DB_SERVICE}" "${KEY_NAME}" 2>/dev/null | tail -n +3)
-DB_HOST=$(echo "$KEY_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['host'])")
-DB_PORT=$(echo "$KEY_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['port'])")
-DB_NAME=$(echo "$KEY_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['db_name'])")
-DB_USER=$(echo "$KEY_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['username'])")
-DB_PASS=$(echo "$KEY_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['password'])")
-
-export PGPASSWORD="$DB_PASS"
-PSQL="psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME"
-
-echo "==> Connecting to ${DB_HOST}:${DB_PORT}/${DB_NAME} as ${DB_USER}"
-
-$PSQL <<'EOSQL'
 -- ---------------------------------------------------------------------------
--- Extensions (install as many as the managed RDS allows)
+-- db_schema_init.sql  —  One-time Postgres schema prep for Supabase on cloud.gov
+--
+-- Executed automatically by Terraform (null_resource.db_schema_init) on
+-- first apply against a new database instance.  All statements are
+-- idempotent, so re-running is safe.
+-- ---------------------------------------------------------------------------
+
+-- ---------------------------------------------------------------------------
+-- Extensions
 -- ---------------------------------------------------------------------------
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS citext;
 
 -- ---------------------------------------------------------------------------
--- Roles needed by Supabase
--- pgjwt is not available on managed RDS — GoTrue signs JWTs directly instead.
+-- Roles required by Supabase services
+-- (pgjwt is not available on managed RDS — GoTrue signs JWTs natively.)
 -- ---------------------------------------------------------------------------
 DO $$
 BEGIN
@@ -102,9 +72,12 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA storage GRANT ALL ON TABLES TO anon, authenti
 ALTER DEFAULT PRIVILEGES IN SCHEMA storage GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
--- GoTrue: pre-create auth.schema_migrations (Pop v6 / pgx v4 workaround)
--- Required because Cloud Foundry RDS users cannot SET search_path during
--- the CREATE TABLE statement the way local Postgres superusers can.
+-- GoTrue: pre-create auth.schema_migrations
+--
+-- Cloud Foundry RDS service-key users cannot SET search_path globally the
+-- way a local Postgres superuser can, which causes GoTrue's Pop v6 migrator
+-- to fail when it tries to create this table.  Pre-creating it here (in the
+-- correct schema) unblocks GoTrue's startup migration run.
 -- ---------------------------------------------------------------------------
 SET search_path TO auth;
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -117,7 +90,7 @@ RESET search_path;
 -- ---------------------------------------------------------------------------
 -- Realtime: pre-create _realtime.schema_migrations
 -- (Realtime is disabled on cloud.gov due to IPv6 incompatibility, but
---  pre-creating the table prevents errors if it is ever enabled.)
+--  pre-creating the table is harmless and prevents errors if it is enabled.)
 -- ---------------------------------------------------------------------------
 SET search_path TO _realtime;
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -127,10 +100,4 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 );
 RESET search_path;
 
-SELECT 'DB prep complete. Restart Supabase apps now.' AS status;
-EOSQL
-
-echo ""
-echo "==> Done. Now restart apps:"
-echo "    cf restart supabase-auth"
-echo "    cf restart supabase-storage"
+SELECT 'DB schema init complete.' AS status;

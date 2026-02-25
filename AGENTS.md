@@ -50,18 +50,11 @@ Credentials go in `vars.auto.tfvars` (see `vars.auto.tfvars-example` for all thr
 
 JWT secrets (`jwt_secret`, `anon_key`, `service_role_key`) are **optional** — Terraform auto-generates them via the `camptocamp/jwt` provider (`jwt_hashed_token` resource) and `hashicorp/random` if not provided.
 
-### First-time setup — one-time DB schema prep
+### First-time setup — DB schema initialisation
 
-After the initial `terraform apply`, run the database prep script before apps can start successfully:
+`terraform apply` automatically runs `scripts/db_schema_init.sql` against the new database via a `null_resource` provisioner (triggered once per new DB instance). This creates the roles, schemas, and migration-tracking tables that GoTrue and Storage expect.
 
-```bash
-# Requires: cf CLI logged in, psql, cf connect-to-service plugin
-./scripts/cloudgov_db_prep.sh
-cf restart supabase-auth
-cf restart supabase-storage
-```
-
-This creates the roles, schemas, and migration tables that GoTrue and Storage expect.
+**Prerequisite**: `psql` must be in `PATH` on the machine running `terraform apply`. The cloud.gov RDS endpoint is publicly accessible — no VPN or SSH tunnel required.
 
 ## Architecture
 

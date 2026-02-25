@@ -57,6 +57,35 @@ resource "jwt_hashed_token" "service_role" {
 # Core infrastructure
 # ---------------------------------------------------------------------------
 
+# First-time database schema initialisation — runs once per new DB instance.
+# Requires: psql in PATH and network access to the cloud.gov RDS endpoint.
+# The SQL file creates the roles, schemas, and migration-tracking tables that
+# GoTrue and Storage expect before their first startup.
+resource "null_resource" "db_schema_init" {
+  triggers = {
+    # Re-run only when the database instance is replaced
+    db_instance_id = module.database.instance_id
+    service_key_id = cloudfoundry_service_key.meta.id
+  }
+
+  provisioner "local-exec" {
+    environment = {
+      PGPASSWORD = cloudfoundry_service_key.meta.credentials.password
+      PGSSLMODE  = "require"
+    }
+    command = <<-CMD
+      psql \
+        -h "${cloudfoundry_service_key.meta.credentials.host}" \
+        -p "${cloudfoundry_service_key.meta.credentials.port}" \
+        -U "${cloudfoundry_service_key.meta.credentials.username}" \
+        -d "${cloudfoundry_service_key.meta.credentials.db_name}" \
+        -f "${path.module}/../scripts/db_schema_init.sql"
+    CMD
+  }
+
+  depends_on = [module.database, cloudfoundry_service_key.meta]
+}
+
 # The beating heart of all Supabase services is a Postgres database
 module "database" {
   source        = "github.com/GSA-TTS/terraform-cloudgov//database?ref=v2.0.0"
