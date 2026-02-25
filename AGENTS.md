@@ -1,12 +1,14 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to coding agents working with code in this repository.
 
 ## What This Repo Is
 
 A Terraform module and Docker Compose environment for deploying Supabase on [cloud.gov](https://cloud.gov) (a Cloud Foundry-based PaaS). It publishes security-scanned container images to `ghcr.io/gsa-tts/cg-supabase` and uses them in both local development and production.
 
 ## Local Development Commands
+
+The Docker Compose environment is for **local development and testing only** — it does not deploy to cloud.gov.
 
 All commands run from the `docker/` directory:
 
