@@ -25,13 +25,11 @@ resource "cloudfoundry_app" "supabase-studio" {
   docker_image = "${local.studio_image}@${data.docker_registry_image.studio.sha256_digest}"
   timeout      = 180
   memory       = var.studio_memory
-  disk_quota   = 1024
+  disk_quota   = 2048
   instances    = var.studio_instances
   strategy     = "rolling"
 
-  health_check_type              = "http"
-  health_check_http_endpoint     = "/api/profile"
-  health_check_invocation_timeout = 30
+  health_check_type = "port"
 
   routes {
     route = cloudfoundry_route.supabase-studio.id
