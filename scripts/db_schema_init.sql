@@ -1,9 +1,9 @@
 -- ---------------------------------------------------------------------------
--- db_schema_init.sql  —  One-time Postgres schema prep for Supabase on cloud.gov
+-- db_schema_init.sql  —  Postgres schema prep for Supabase on cloud.gov
 --
--- Executed automatically by Terraform (null_resource.db_schema_init) on
--- first apply against a new database instance.  All statements are
--- idempotent, so re-running is safe.
+-- This SQL is embedded in Terraform (local.db_schema_init_sql in supabase.tf)
+-- and executed by pg-meta at container startup.  This file is kept as a
+-- readable reference copy.  All statements are idempotent.
 -- ---------------------------------------------------------------------------
 
 -- ---------------------------------------------------------------------------

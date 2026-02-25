@@ -108,5 +108,6 @@ resource "cloudfoundry_app" "supabase-storage" {
   depends_on = [
     cloudfoundry_service_key.storage,
     cloudfoundry_service_key.s3,
+    cloudfoundry_app.supabase-meta, # schema init creates storage schema
   ]
 }

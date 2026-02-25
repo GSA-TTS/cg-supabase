@@ -48,5 +48,8 @@ resource "cloudfoundry_app" "supabase-rest" {
     PGRST_SERVER_PORT        = "3000"
   }
 
-  depends_on = [cloudfoundry_service_key.rest]
+  depends_on = [
+    cloudfoundry_service_key.rest,
+    cloudfoundry_app.supabase-meta, # schema init creates roles for SET ROLE
+  ]
 }

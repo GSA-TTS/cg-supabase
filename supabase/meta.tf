@@ -39,6 +39,21 @@ resource "cloudfoundry_app" "supabase-meta" {
 
   command = <<-CMD
     ${local.rds_ca_setup}
+    cd /usr/src/app && node -e "
+      const{Client}=require('pg');
+      const c=new Client({
+        host:process.env.PG_META_DB_HOST,
+        port:+process.env.PG_META_DB_PORT,
+        database:process.env.PG_META_DB_NAME,
+        user:process.env.PG_META_DB_USER,
+        password:process.env.PG_META_DB_PASSWORD,
+        ssl:true
+      });
+      c.connect()
+        .then(()=>c.query(process.env.DB_INIT_SQL))
+        .then(()=>{console.log('DB schema init OK');return c.end()})
+        .catch(e=>{console.error('DB schema init FAILED:',e.message);process.exit(1)});
+    "
     exec docker-entrypoint.sh node /usr/src/app/dist/server/server.js
   CMD
 
@@ -55,6 +70,10 @@ resource "cloudfoundry_app" "supabase-meta" {
     # Certificate validation uses NODE_EXTRA_CA_CERTS (set by rds-ca.sh at startup)
     # with the AWS GovCloud RDS CA bundle.
     PG_META_DB_SSL_MODE = "require"
+
+    # Idempotent DDL executed before the server starts — creates extensions,
+    # roles, schemas, and migration-tracking tables needed by downstream services.
+    DB_INIT_SQL = local.db_schema_init_sql
   }
 
   depends_on = [cloudfoundry_service_key.meta]

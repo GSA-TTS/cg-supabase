@@ -67,5 +67,8 @@ resource "cloudfoundry_app" "supabase-auth" {
     GOTRUE_SMS_AUTOCONFIRM        = "false"
   }
 
-  depends_on = [cloudfoundry_service_key.auth]
+  depends_on = [
+    cloudfoundry_service_key.auth,
+    cloudfoundry_app.supabase-meta, # schema init creates auth schema + migration table
+  ]
 }
