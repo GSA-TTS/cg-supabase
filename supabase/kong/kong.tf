@@ -18,7 +18,7 @@ resource "cloudfoundry_app" "kong" {
   disk_quota       = 256
   instances        = var.instances
   strategy         = "rolling"
-  command          = "./run.sh"
+  command          = "bash run.sh"
   environment = {
     KONG_PLUGINS = var.kong_plugins
 
