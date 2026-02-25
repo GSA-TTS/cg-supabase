@@ -87,7 +87,7 @@ internal routes (`apps.internal`) on port 61443.
 | Service | Reason |
 |---|---|
 | Realtime | Hardcodes `inet6` socket options; cloud.gov containers lack IPv6 |
-| Edge Functions | Not in scope |
+| Edge Functions | Not in scope — would require a [cloud.gov egress proxy](https://github.com/GSA-TTS/terraform-cloudgov/tree/main/egress_proxy) for outbound HTTP requests |
 | Analytics / Logflare | Not in scope |
 
 ## Status

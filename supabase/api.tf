@@ -157,6 +157,7 @@ locals {
           - name: cors
 
       ## Edge Functions routes — not deployed in this Terraform module.
+      ## Requires a cloud.gov egress proxy for outbound HTTP requests from user code.
       ## Uncomment and set url to the CF internal route if deploying an edge functions app.
       # - name: functions-v1
       #   url: https://<functions-hostname>.apps.internal:61443/
