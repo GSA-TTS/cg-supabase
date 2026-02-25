@@ -49,6 +49,11 @@ resource "cloudfoundry_app" "supabase-storage" {
   health_check_http_endpoint     = "/status"
   health_check_invocation_timeout = 30
 
+  command = <<-CMD
+    ${local.rds_ca_setup}
+    exec docker-entrypoint.sh node /app/dist/start/server.js
+  CMD
+
   routes {
     route = cloudfoundry_route.supabase-storage.id
   }
@@ -64,7 +69,8 @@ resource "cloudfoundry_app" "supabase-storage" {
     POSTGREST_URL    = local.rest_url
     PGRST_JWT_SECRET = local.effective_jwt_secret
 
-    # Database
+    # Database — certificate validation uses NODE_EXTRA_CA_CERTS (set by rds-ca.sh
+    # at startup) with the AWS GovCloud RDS CA bundle.
     DATABASE_URL             = local.storage_connection_string
     DATABASE_POOL_URL        = local.storage_connection_string
     DATABASE_MULTITENANT_URL = local.storage_connection_string
@@ -73,10 +79,6 @@ resource "cloudfoundry_app" "supabase-storage" {
     AUTH_JWT_SECRET          = local.effective_jwt_secret
     AUTH_JWT_ALGORITHM       = "HS256"
     DB_INSTALL_ROLES         = "true"
-
-    # cloud.gov RDS uses a self-signed intermediate CA; disable cert chain validation
-    # (SSL is still used for encryption — only the certificate chain is not verified)
-    NODE_TLS_REJECT_UNAUTHORIZED = "0"
 
     # S3 backend (cloud.gov s3 broker — FIPS endpoint for GovCloud compliance)
     STORAGE_BACKEND             = "s3"

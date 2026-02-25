@@ -37,12 +37,10 @@ resource "cloudfoundry_app" "supabase-studio" {
     route = cloudfoundry_route.supabase-studio.id
   }
 
-  command = <<-EOT
-    # Trust the Cloud Foundry-provided CA for TLS connections to internal services
-    cat /etc/cf-system-certificates/* > /usr/local/share/ca-certificates/cf-system-certificates.crt
-    /usr/sbin/update-ca-certificates
-    /usr/local/bin/docker-entrypoint.sh node /app/apps/studio/server.js
-    EOT
+  command = <<-CMD
+    ${local.rds_ca_setup}
+    exec /usr/local/bin/docker-entrypoint.sh node /app/apps/studio/server.js
+  CMD
 
   environment = {
     # https://github.com/supabase/supabase/blob/master/apps/studio/.env
@@ -68,21 +66,18 @@ resource "cloudfoundry_app" "supabase-studio" {
     #
     # SSL must be embedded in POSTGRES_DB as a query parameter — there is no
     # POSTGRES_SSLMODE env var and no other injection point on this code path.
-    # sslmode=no-verify → pg-meta sets ssl: { rejectUnauthorized: false },
-    # which cloud.gov RDS accepts (SSL is still used; only cert-chain validation is skipped).
+    # Studio sends the encrypted connection string to pg-meta, which opens a
+    # per-request pool. Certificate validation uses NODE_EXTRA_CA_CERTS
+    # (set by rds-ca.sh at startup) on both Studio and pg-meta processes.
     #
     # All POSTGRES_* vars must be set: if POSTGRES_HOST is absent Studio falls back to
     # hostname "db" (Docker Compose default) and pg-meta returns ENOTFOUND.
     POSTGRES_HOST            = cloudfoundry_service_key.studio.credentials.host
     POSTGRES_PORT            = tostring(cloudfoundry_service_key.studio.credentials.port)
-    POSTGRES_DB              = "${cloudfoundry_service_key.studio.credentials.db_name}?sslmode=no-verify"
+    POSTGRES_DB              = "${cloudfoundry_service_key.studio.credentials.db_name}?sslmode=require"
     POSTGRES_USER_READ_WRITE = cloudfoundry_service_key.studio.credentials.username
     POSTGRES_USER_READ_ONLY  = cloudfoundry_service_key.studio.credentials.username
     POSTGRES_PASSWORD        = cloudfoundry_service_key.studio.credentials.password
-
-    # NODE_TLS_REJECT_UNAUTHORIZED disables cert-chain validation for all other Node.js
-    # DB connections in Studio. PGSSLMODE is not read by node-postgres and has no effect.
-    NODE_TLS_REJECT_UNAUTHORIZED = "0"
 
     NEXT_PUBLIC_ENABLE_LOGS         = "true"
     # "postgres" causes Studio to make additional direct DB connections for analytics

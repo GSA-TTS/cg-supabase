@@ -16,6 +16,20 @@ locals {
   effective_jwt_secret       = var.jwt_secret != "" ? var.jwt_secret : random_password.jwt_secret.result
   effective_anon_key         = var.anon_key != "" ? var.anon_key : jwt_hashed_token.anon.token
   effective_service_role_key = var.service_role_key != "" ? var.service_role_key : jwt_hashed_token.service_role.token
+
+  # ---------------------------------------------------------------------------
+  # RDS CA bootstrap — inline shell snippet sourced by each Node.js service's
+  # startup command.  Builds a combined CA bundle (CF platform certs + AWS
+  # GovCloud RDS CA) and exports NODE_EXTRA_CA_CERTS so that node-postgres
+  # validates the RDS certificate chain instead of disabling TLS verification.
+  # ---------------------------------------------------------------------------
+  rds_ca_url = "https://truststore.pki.us-gov-west-1.rds.amazonaws.com/us-gov-west-1/us-gov-west-1-bundle.pem"
+  rds_ca_setup = <<-SH
+    CA_BUNDLE="/tmp/combined-ca-bundle.pem"
+    cat /etc/cf-system-certificates/*.crt > "$CA_BUNDLE" 2>/dev/null || true
+    node -e "const h=require('https'),f=require('fs');h.get('${local.rds_ca_url}',r=>{let d='';r.on('data',c=>d+=c);r.on('end',()=>f.appendFileSync('$CA_BUNDLE',d))}).on('error',e=>{console.error('RDS CA fetch failed:',e.message);process.exit(1)})"
+    export NODE_EXTRA_CA_CERTS="$CA_BUNDLE"
+  SH
 }
 
 # ---------------------------------------------------------------------------

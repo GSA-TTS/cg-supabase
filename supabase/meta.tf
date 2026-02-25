@@ -37,6 +37,11 @@ resource "cloudfoundry_app" "supabase-meta" {
     route = cloudfoundry_route.supabase-meta.id
   }
 
+  command = <<-CMD
+    ${local.rds_ca_setup}
+    exec docker-entrypoint.sh node /usr/src/app/dist/server/server.js
+  CMD
+
   environment = {
     # https://github.com/supabase/postgres-meta#quickstart
     PG_META_PORT        = "8080"
@@ -47,10 +52,9 @@ resource "cloudfoundry_app" "supabase-meta" {
     PG_META_DB_PASSWORD = cloudfoundry_service_key.meta.credentials.password
     # cloud.gov RDS requires SSL. node-postgres (pg) does not read the libpq PGSSLMODE
     # env var — use pg-meta's own SSL env var instead (available since pg-meta v0.85+).
-    # NODE_TLS_REJECT_UNAUTHORIZED disables cert-chain validation against the self-signed
-    # intermediate CA used by cloud.gov RDS.
-    PG_META_DB_SSL_MODE          = "require"
-    NODE_TLS_REJECT_UNAUTHORIZED = "0"
+    # Certificate validation uses NODE_EXTRA_CA_CERTS (set by rds-ca.sh at startup)
+    # with the AWS GovCloud RDS CA bundle.
+    PG_META_DB_SSL_MODE = "require"
   }
 
   depends_on = [cloudfoundry_service_key.meta]
