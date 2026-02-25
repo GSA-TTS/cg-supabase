@@ -29,7 +29,7 @@ resource "cloudfoundry_app" "supabase-rest" {
   memory       = var.rest_memory
   disk_quota   = 256
   instances    = var.rest_instances
-  strategy     = "rolling"
+  strategy     = "none"
 
   health_check_type = "port"
 

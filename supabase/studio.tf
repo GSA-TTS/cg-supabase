@@ -27,7 +27,7 @@ resource "cloudfoundry_app" "supabase-studio" {
   memory       = var.studio_memory
   disk_quota   = 2048
   instances    = var.studio_instances
-  strategy     = "rolling"
+  strategy     = "none"
 
   health_check_type = "port"
 

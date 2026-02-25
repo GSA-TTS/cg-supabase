@@ -43,7 +43,7 @@ resource "cloudfoundry_app" "supabase-storage" {
   memory       = var.storage_memory
   disk_quota   = 1024
   instances    = var.storage_instances
-  strategy     = "rolling"
+  strategy     = "none"
 
   health_check_type              = "http"
   health_check_http_endpoint     = "/status"

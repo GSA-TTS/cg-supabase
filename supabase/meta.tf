@@ -27,7 +27,7 @@ resource "cloudfoundry_app" "supabase-meta" {
   memory       = var.meta_memory
   disk_quota   = 1024
   instances    = var.meta_instances
-  strategy     = "rolling"
+  strategy     = "none"
 
   health_check_type              = "http"
   health_check_http_endpoint     = "/"

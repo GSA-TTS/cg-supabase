@@ -30,7 +30,7 @@ resource "cloudfoundry_app" "supabase-auth" {
   memory       = var.auth_memory
   disk_quota   = 256
   instances    = var.auth_instances
-  strategy     = "rolling"
+  strategy     = "none"
 
   health_check_type              = "http"
   health_check_http_endpoint     = "/health"
