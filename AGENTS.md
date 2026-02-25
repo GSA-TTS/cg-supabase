@@ -48,7 +48,7 @@ terraform apply
 
 Credentials go in `vars.auto.tfvars` (see `vars.auto.tfvars-example` for all three auth options: service account, SSO passcode, or username/password). Uses the `cloudfoundry` provider (~> 0.53.1) against `https://api.fr.cloud.gov`.
 
-JWT secrets (`jwt_secret`, `anon_key`, `service_role_key`) are **optional** — Terraform auto-generates them via `scripts/generate_jwt.py` (pure Python stdlib, no pip needed) if not provided.
+JWT secrets (`jwt_secret`, `anon_key`, `service_role_key`) are **optional** — Terraform auto-generates them via the `camptocamp/jwt` provider (`jwt_hashed_token` resource) and `hashicorp/random` if not provided.
 
 ### First-time setup — one-time DB schema prep
 

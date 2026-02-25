@@ -11,6 +11,11 @@ terraform {
       version = "~>3.0.2"
     }
 
+    jwt = {
+      source  = "camptocamp/jwt"
+      version = "~>1.1"
+    }
+
     random = {
       source  = "hashicorp/random"
       version = ">= 3.0"

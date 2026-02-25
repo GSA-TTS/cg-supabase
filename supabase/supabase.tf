@@ -13,9 +13,9 @@ locals {
   # Effective secrets: use provided vars when non-empty, otherwise auto-generate.
   # jwt_secret drives anon_key and service_role_key; all three can be overridden.
   # ---------------------------------------------------------------------------
-  effective_jwt_secret      = var.jwt_secret != "" ? var.jwt_secret : random_password.jwt_secret.result
-  effective_anon_key        = var.anon_key != "" ? var.anon_key : data.external.anon_jwt.result["jwt"]
-  effective_service_role_key = var.service_role_key != "" ? var.service_role_key : data.external.service_role_jwt.result["jwt"]
+  effective_jwt_secret       = var.jwt_secret != "" ? var.jwt_secret : random_password.jwt_secret.result
+  effective_anon_key         = var.anon_key != "" ? var.anon_key : jwt_hashed_token.anon.token
+  effective_service_role_key = var.service_role_key != "" ? var.service_role_key : jwt_hashed_token.service_role.token
 }
 
 # ---------------------------------------------------------------------------
@@ -26,20 +26,31 @@ resource "random_password" "jwt_secret" {
   special = false
 }
 
-data "external" "anon_jwt" {
-  program = ["python3", "${path.module}/../scripts/generate_jwt.py"]
-  query = {
-    secret = local.effective_jwt_secret
-    role   = "anon"
-  }
+# ---------------------------------------------------------------------------
+# Auto-generated anon and service_role JWTs via camptocamp/jwt provider.
+# iat/exp are fixed far-future timestamps (same convention as Supabase's
+# official docker-compose demo). All three can be overridden via vars.
+# ---------------------------------------------------------------------------
+resource "jwt_hashed_token" "anon" {
+  secret    = local.effective_jwt_secret
+  algorithm = "HS256"
+  claims_json = jsonencode({
+    role = "anon"
+    iss  = "supabase"
+    iat  = 1741222400 # ~March 2025
+    exp  = 1956778800 # ~December 2031
+  })
 }
 
-data "external" "service_role_jwt" {
-  program = ["python3", "${path.module}/../scripts/generate_jwt.py"]
-  query = {
-    secret = local.effective_jwt_secret
-    role   = "service_role"
-  }
+resource "jwt_hashed_token" "service_role" {
+  secret    = local.effective_jwt_secret
+  algorithm = "HS256"
+  claims_json = jsonencode({
+    role = "service_role"
+    iss  = "supabase"
+    iat  = 1741222400 # ~March 2025
+    exp  = 1956778800 # ~December 2031
+  })
 }
 
 # ---------------------------------------------------------------------------
