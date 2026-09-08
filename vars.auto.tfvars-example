@@ -5,6 +5,7 @@ cf_org_name   = "your-cloudgov-org"
 cf_space_name = "your-cloudgov-space"
 
 database_plan = "micro-psql"
+s3_plan_name  = "basic"
 
 # ---------------------------------------------------------------------------
 # Option A: Service account (recommended for CI/CD)
@@ -35,14 +36,14 @@ database_plan = "micro-psql"
 # Sandbox-safe sizing — one instance per app, 896 MB total app memory
 # ---------------------------------------------------------------------------
 # api_instances     = 1
-# api_memory        = "256"
+# api_memory        = "256M"
 # auth_instances    = 1
-# auth_memory       = "128"
+# auth_memory       = "128M"
 # meta_instances    = 1
-# meta_memory       = "128"
+# meta_memory       = "128M"
 # rest_instances    = 1
-# rest_memory       = "128"
+# rest_memory       = "128M"
 # storage_instances = 1
-# storage_memory    = "128"
+# storage_memory    = "128M"
 # studio_instances  = 1
-# studio_memory     = "128"
+# studio_memory     = "128M"

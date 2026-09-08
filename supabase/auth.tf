@@ -3,7 +3,7 @@ locals {
   auth_image_tag      = "scanned"
   auth_app_name       = "supabase-auth"
   auth_url            = "https://${cloudfoundry_route.supabase-auth.url}:61443"
-  auth_db_credentials = jsondecode(cloudfoundry_service_credential_binding.auth.credential_binding)
+  auth_db_credentials = jsondecode(cloudfoundry_service_credential_binding.auth.credential_binding).credentials
   # GoTrue is a Go service — sslmode=prefer encrypts without requiring cert validation
   auth_connection_string = "${local.auth_db_credentials.uri}?search_path=auth&sslmode=prefer"
 }
@@ -31,7 +31,7 @@ resource "cloudfoundry_app" "supabase-auth" {
   docker_image = "${local.auth_image}@${data.docker_registry_image.auth.sha256_digest}"
   timeout      = 600
   memory       = var.auth_memory
-  disk_quota   = 256
+  disk_quota   = "256M"
   instances    = var.auth_instances
   strategy     = "none"
 

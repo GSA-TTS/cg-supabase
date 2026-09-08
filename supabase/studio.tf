@@ -2,7 +2,7 @@ locals {
   studio_image          = "ghcr.io/gsa-tts/cg-supabase/studio"
   studio_image_tag      = "scanned"
   studio_url            = "https://${cloudfoundry_route.supabase-studio.url}:61443"
-  studio_db_credentials = jsondecode(cloudfoundry_service_credential_binding.studio.credential_binding)
+  studio_db_credentials = jsondecode(cloudfoundry_service_credential_binding.studio.credential_binding).credentials
 }
 
 resource "cloudfoundry_route" "supabase-studio" {
@@ -28,7 +28,7 @@ resource "cloudfoundry_app" "supabase-studio" {
   docker_image = "${local.studio_image}@${data.docker_registry_image.studio.sha256_digest}"
   timeout      = 600
   memory       = var.studio_memory
-  disk_quota   = 2048
+  disk_quota   = "2048M"
   instances    = var.studio_instances
   strategy     = "none"
 

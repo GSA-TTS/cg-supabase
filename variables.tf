@@ -14,6 +14,12 @@ variable "database_plan" {
   default     = "micro-psql"
 }
 
+variable "s3_plan_name" {
+  type        = string
+  description = "name of the cloud.gov S3 service plan to create"
+  default     = "basic"
+}
+
 # ---------------------------------------------------------------------------
 # Cloud Foundry authentication — provide service-account credentials,
 # username/password credentials, or neither to use CF CLI config fallback.
@@ -80,7 +86,7 @@ variable "api_instances" {
 variable "api_memory" {
   type        = string
   description = "the memory limit in megabytes for each api application instance"
-  default     = "256"
+  default     = "256M"
 }
 
 variable "auth_instances" {
@@ -92,7 +98,7 @@ variable "auth_instances" {
 variable "auth_memory" {
   type        = string
   description = "the memory limit in megabytes for each auth application instance"
-  default     = "128"
+  default     = "128M"
 }
 
 variable "meta_instances" {
@@ -104,7 +110,7 @@ variable "meta_instances" {
 variable "meta_memory" {
   type        = string
   description = "the memory limit in megabytes for each meta application instance"
-  default     = "128"
+  default     = "128M"
 }
 
 variable "rest_instances" {
@@ -116,7 +122,7 @@ variable "rest_instances" {
 variable "rest_memory" {
   type        = string
   description = "the memory limit in megabytes for each postgrest application instance"
-  default     = "128"
+  default     = "128M"
 }
 
 variable "storage_instances" {
@@ -128,7 +134,7 @@ variable "storage_instances" {
 variable "storage_memory" {
   type        = string
   description = "the memory limit in megabytes for each storage application instance"
-  default     = "128"
+  default     = "128M"
 }
 
 variable "studio_instances" {
@@ -140,5 +146,5 @@ variable "studio_instances" {
 variable "studio_memory" {
   type        = string
   description = "the memory limit in megabytes for each studio application instance"
-  default     = "128"
+  default     = "128M"
 }

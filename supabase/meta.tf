@@ -2,7 +2,7 @@ locals {
   meta_image          = "ghcr.io/gsa-tts/cg-supabase/meta"
   meta_image_tag      = "scanned"
   meta_url            = "https://${cloudfoundry_route.supabase-meta.url}:61443"
-  meta_db_credentials = jsondecode(cloudfoundry_service_credential_binding.meta.credential_binding)
+  meta_db_credentials = jsondecode(cloudfoundry_service_credential_binding.meta.credential_binding).credentials
 }
 
 resource "cloudfoundry_route" "supabase-meta" {
@@ -28,7 +28,7 @@ resource "cloudfoundry_app" "supabase-meta" {
   docker_image = "${local.meta_image}@${data.docker_registry_image.meta.sha256_digest}"
   timeout      = 600
   memory       = var.meta_memory
-  disk_quota   = 1024
+  disk_quota   = "1024M"
   instances    = var.meta_instances
   strategy     = "none"
 

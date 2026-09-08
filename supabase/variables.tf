@@ -15,6 +15,12 @@ variable "database_plan" {
   default = "medium-gp-psql-redundant"
 }
 
+variable "s3_plan_name" {
+  type        = string
+  description = "name of the cloud.gov S3 service plan to create"
+  default     = "basic"
+}
+
 variable "api_instances" {
   type        = number
   description = "the number of instances of the api application to run (default: 2)"
@@ -24,7 +30,7 @@ variable "api_instances" {
 variable "api_memory" {
   type        = string
   description = "the memory limit in megabytes for each api application instance (default: 256)"
-  default     = "256"
+  default     = "256M"
 }
 
 variable "auth_instances" {
@@ -36,7 +42,7 @@ variable "auth_instances" {
 variable "auth_memory" {
   type        = string
   description = "the memory limit in megabytes for each auth application instance (default: 128)"
-  default     = "128"
+  default     = "128M"
 }
 
 variable "meta_instances" {
@@ -48,7 +54,7 @@ variable "meta_instances" {
 variable "meta_memory" {
   type        = string
   description = "the memory limit in megabytes for each postgrest instance (default: 128)"
-  default     = "128"
+  default     = "128M"
 }
 
 variable "rest_instances" {
@@ -60,7 +66,7 @@ variable "rest_instances" {
 variable "rest_memory" {
   type        = string
   description = "the memory limit in megabytes for each postgrest instance (default: 128)"
-  default     = "128"
+  default     = "128M"
 }
 
 variable "storage_instances" {
@@ -72,7 +78,7 @@ variable "storage_instances" {
 variable "storage_memory" {
   type        = string
   description = "the memory limit in megabytes for each storage instance (default: 128)"
-  default     = "128"
+  default     = "128M"
 }
 
 variable "studio_instances" {
@@ -84,7 +90,7 @@ variable "studio_instances" {
 variable "studio_memory" {
   type        = string
   description = "the memory limit in megabytes for each studio instance (default: 128)"
-  default     = "128"
+  default     = "128M"
 }
 
 variable "jwt_secret" {

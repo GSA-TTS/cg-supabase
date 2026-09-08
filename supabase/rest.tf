@@ -2,7 +2,7 @@ locals {
   rest_image          = "ghcr.io/gsa-tts/cg-supabase/rest"
   rest_image_tag      = "scanned"
   rest_url            = "https://${cloudfoundry_route.supabase-rest.url}:61443"
-  rest_db_credentials = jsondecode(cloudfoundry_service_credential_binding.rest.credential_binding)
+  rest_db_credentials = jsondecode(cloudfoundry_service_credential_binding.rest.credential_binding).credentials
   # PostgREST is a Go service — sslmode=prefer encrypts without requiring cert validation
   rest_connection_string = "${local.rest_db_credentials.uri}?sslmode=prefer"
 }
@@ -30,7 +30,7 @@ resource "cloudfoundry_app" "supabase-rest" {
   docker_image = "${local.rest_image}@${data.docker_registry_image.rest.sha256_digest}"
   timeout      = 600
   memory       = var.rest_memory
-  disk_quota   = 256
+  disk_quota   = "256M"
   instances    = var.rest_instances
   strategy     = "none"
 

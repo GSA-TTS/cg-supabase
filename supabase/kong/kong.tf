@@ -16,7 +16,7 @@ resource "cloudfoundry_app" "kong" {
   source_code_hash = filesha256("${path.module}/${data.external.kongzip.result.path}")
   timeout          = 600
   memory           = var.memory
-  disk_quota       = 256
+  disk_quota       = "256M"
   instances        = var.instances
   strategy         = "none"
   command          = "bash run.sh"

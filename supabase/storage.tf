@@ -2,8 +2,8 @@ locals {
   storage_image          = "ghcr.io/gsa-tts/cg-supabase/storage"
   storage_image_tag      = "scanned"
   storage_url            = "https://${cloudfoundry_route.supabase-storage.url}:61443"
-  storage_db_credentials = jsondecode(cloudfoundry_service_credential_binding.storage.credential_binding)
-  s3_credentials         = jsondecode(cloudfoundry_service_credential_binding.s3.credential_binding)
+  storage_db_credentials = jsondecode(cloudfoundry_service_credential_binding.storage.credential_binding).credentials
+  s3_credentials         = jsondecode(cloudfoundry_service_credential_binding.s3.credential_binding).credentials
   # storage is a Node.js service; RDS CA validation is configured via NODE_EXTRA_CA_CERTS.
   storage_connection_string = "${local.storage_db_credentials.uri}?sslmode=prefer"
 }
@@ -26,7 +26,7 @@ module "s3-private" {
 
   cf_space_id  = data.cloudfoundry_space.apps.id
   name         = "supabase-private-s3"
-  s3_plan_name = "basic"
+  s3_plan_name = var.s3_plan_name
 }
 
 resource "cloudfoundry_service_credential_binding" "s3" {
@@ -46,7 +46,7 @@ resource "cloudfoundry_app" "supabase-storage" {
   docker_image = "${local.storage_image}@${data.docker_registry_image.storage.sha256_digest}"
   timeout      = 600
   memory       = var.storage_memory
-  disk_quota   = 1024
+  disk_quota   = "1024M"
   instances    = var.storage_instances
   strategy     = "none"
 

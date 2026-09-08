@@ -22,7 +22,7 @@ variable "instances" {
 variable "memory" {
   type        = string
   description = "the memory limit in megabytes for each Kong application instance (default: 256)"
-  default     = "256"
+  default     = "256M"
 }
 
 variable "kong_version" {

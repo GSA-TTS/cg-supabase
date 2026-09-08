@@ -21,6 +21,7 @@ Configuration:
   CG_KEEP_DEPLOYMENT=1    Keep resources after the test. Default destroys them.
   CG_SKIP_APPLY=1         Reuse an existing deployment and only run checks.
   CG_TIMEOUT_SECONDS=900  App health polling timeout. Default: 900.
+  CG_S3_PLAN=basic-sandbox  S3 service plan. Default: basic-sandbox.
 
 The generated var-file forces one instance per app and 896 MB total app memory
 (256 MB Kong + 128 MB each for auth/meta/rest/storage/studio) to fit the default
@@ -53,6 +54,7 @@ report_file="$repo_root/.cloudgov-smoke-report.txt"
 keep_deployment="${CG_KEEP_DEPLOYMENT:-0}"
 skip_apply="${CG_SKIP_APPLY:-0}"
 timeout_seconds="${CG_TIMEOUT_SECONDS:-900}"
+s3_plan="${CG_S3_PLAN:-basic-sandbox}"
 
 cf_target_field() {
   local label="$1"
@@ -67,6 +69,8 @@ if [[ -z "$cf_org" || -z "$cf_space" ]]; then
   exit 1
 fi
 
+cf target -o "$cf_org" -s "$cf_space" >/dev/null
+
 if [[ -z "${TF_VAR_cf_client_id:-}" && -z "${TF_VAR_cf_user:-}" && -z "${CF_ACCESS_TOKEN:-}" ]]; then
   cf_token="$(cf oauth-token 2>/dev/null || true)"
   if [[ -z "$cf_token" || "$cf_token" == "bearer" ]]; then
@@ -79,23 +83,30 @@ fi
 
 export TF_DATA_DIR="$data_dir"
 
+if ! cf marketplace -s s3 2>/dev/null | grep -Eq "(^|[[:space:],])${s3_plan}([[:space:],]|$)"; then
+  echo "ERROR: S3 service plan '$s3_plan' is not visible in $cf_org / $cf_space." >&2
+  echo "Run 'cf marketplace -s s3' to list available plans, then set CG_S3_PLAN=<plan>." >&2
+  exit 1
+fi
+
 cat > "$var_file" <<VARS
 cf_org_name   = "$cf_org"
 cf_space_name = "$cf_space"
 database_plan = "micro-psql"
+s3_plan_name  = "$s3_plan"
 
 api_instances     = 1
-api_memory        = "256"
+api_memory        = "256M"
 auth_instances    = 1
-auth_memory       = "128"
+auth_memory       = "128M"
 meta_instances    = 1
-meta_memory       = "128"
+meta_memory       = "128M"
 rest_instances    = 1
-rest_memory       = "128"
+rest_memory       = "128M"
 storage_instances = 1
-storage_memory    = "128"
+storage_memory    = "128M"
 studio_instances  = 1
-studio_memory     = "128"
+studio_memory     = "128M"
 VARS
 
 cleanup() {
@@ -120,6 +131,7 @@ record() {
 record "cloud.gov Supabase smoke test"
 record "Org: $cf_org"
 record "Space: $cf_space"
+record "S3 plan: $s3_plan"
 record "Sandbox-safe app memory: 896 MB total"
 record ""
 

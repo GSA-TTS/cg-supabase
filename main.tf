@@ -10,6 +10,7 @@ module "supabase" {
   service_role_key = var.service_role_key
 
   database_plan = var.database_plan
+  s3_plan_name  = var.s3_plan_name
 
   api_instances     = var.api_instances
   api_memory        = var.api_memory
