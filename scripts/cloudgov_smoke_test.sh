@@ -83,9 +83,9 @@ fi
 
 export TF_DATA_DIR="$data_dir"
 
-if ! cf marketplace -s s3 2>/dev/null | grep -Eq "(^|[[:space:],])${s3_plan}([[:space:],]|$)"; then
+if ! cf marketplace -e s3 2>/dev/null | awk 'NR > 1 { print $1 }' | grep -Fxq "$s3_plan"; then
   echo "ERROR: S3 service plan '$s3_plan' is not visible in $cf_org / $cf_space." >&2
-  echo "Run 'cf marketplace -s s3' to list available plans, then set CG_S3_PLAN=<plan>." >&2
+  echo "Run 'cf marketplace -e s3' to list available plans, then set CG_S3_PLAN=<plan>." >&2
   exit 1
 fi
 
