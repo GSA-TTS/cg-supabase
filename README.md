@@ -48,7 +48,7 @@ A user with access to a cloud.gov org/space can run one command to deploy this m
 CG_ORG=<org> CG_SPACE=<space> ./scripts/cloudgov_smoke_test.sh
 ```
 
-The smoke test sets one instance per app, 896 MB total app memory (256 MB Kong plus 128 MB each for auth, meta, rest, storage, and studio), and the S3 `basic-sandbox` plan so it fits the default 1 GB cloud.gov sandbox quota. It uses isolated Terraform metadata under `.cloudgov-smoke.terraform` and local state at `.cloudgov-smoke.tfstate`, then destroys the deployment by default. If `CG_ORG` and `CG_SPACE` are omitted, the script uses the current `cf target`. If Terraform credentials are not set, the script passes the current `cf oauth-token` to the provider as `CF_ACCESS_TOKEN`. Set `CG_KEEP_DEPLOYMENT=1` to leave resources running for manual inspection.
+The smoke test sets one instance per app, 896 MB total app memory (256 MB Kong plus 128 MB each for auth, meta, rest, storage, and studio), and the S3 `basic-sandbox` plan so it fits the default 1 GB cloud.gov sandbox quota. It uses isolated Terraform metadata under `.cloudgov-smoke.terraform` and local state at `.cloudgov-smoke.tfstate`, then destroys the deployment by default. If `CG_ORG` and `CG_SPACE` are omitted, the script uses the current `cf target`. If Terraform credentials are not set, the script passes the current `cf oauth-token` to the provider as `CF_ACCESS_TOKEN`. On failure, diagnostics are written under `.cloudgov-smoke-logs/`; set `CG_KEEP_ON_FAILURE=1` or `CG_KEEP_DEPLOYMENT=1` to leave resources running for manual inspection.
 
 ## Deployment architecture
 

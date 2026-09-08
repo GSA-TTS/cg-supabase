@@ -8,6 +8,7 @@
 **/*.tfstate.*.backup
 **/*.tfvars
 .cloudgov-smoke-report.txt
+.cloudgov-smoke-logs/
 .cloudgov-smoke.tfvars
 .cloudgov-smoke.tfstate
 .cloudgov-smoke.terraform/

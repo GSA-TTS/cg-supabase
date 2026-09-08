@@ -19,9 +19,11 @@ Configuration:
   CG_ORG=<org>            Target cloud.gov org. Defaults to current `cf target` org.
   CG_SPACE=<space>        Target cloud.gov space. Defaults to current `cf target` space.
   CG_KEEP_DEPLOYMENT=1    Keep resources after the test. Default destroys them.
+  CG_KEEP_ON_FAILURE=1    Keep resources after a failed test for manual inspection.
   CG_SKIP_APPLY=1         Reuse an existing deployment and only run checks.
   CG_TIMEOUT_SECONDS=900  App health polling timeout. Default: 900.
   CG_S3_PLAN=basic-sandbox  S3 service plan. Default: basic-sandbox.
+  CG_TF_LOG=DEBUG         Optional Terraform log level. Logs may contain secrets.
 
 The generated var-file forces one instance per app and 896 MB total app memory
 (256 MB Kong + 128 MB each for auth/meta/rest/storage/studio) to fit the default
@@ -47,11 +49,14 @@ require_cmd cf
 require_cmd curl
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+run_id="$(date -u +%Y%m%dT%H%M%SZ)"
 var_file="$repo_root/.cloudgov-smoke.tfvars"
 state_file="$repo_root/.cloudgov-smoke.tfstate"
 data_dir="$repo_root/.cloudgov-smoke.terraform"
+log_dir="$repo_root/.cloudgov-smoke-logs/$run_id"
 report_file="$repo_root/.cloudgov-smoke-report.txt"
 keep_deployment="${CG_KEEP_DEPLOYMENT:-0}"
+keep_on_failure="${CG_KEEP_ON_FAILURE:-0}"
 skip_apply="${CG_SKIP_APPLY:-0}"
 timeout_seconds="${CG_TIMEOUT_SECONDS:-900}"
 s3_plan="${CG_S3_PLAN:-basic-sandbox}"
@@ -82,12 +87,27 @@ if [[ -z "${TF_VAR_cf_client_id:-}" && -z "${TF_VAR_cf_user:-}" && -z "${CF_ACCE
 fi
 
 export TF_DATA_DIR="$data_dir"
+mkdir -p "$log_dir"
 
-if ! cf marketplace -e s3 2>/dev/null | awk 'NR > 1 { print $1 }' | grep -Fxq "$s3_plan"; then
+if [[ -n "${CG_TF_LOG:-}" ]]; then
+  export TF_LOG="$CG_TF_LOG"
+  export TF_LOG_PATH="$log_dir/terraform-debug.log"
+fi
+
+if ! cf marketplace -e s3 2>/dev/null | tee "$log_dir/cf-marketplace-s3.txt" | awk 'NR > 1 { print $1 }' | grep -Fxq "$s3_plan"; then
   echo "ERROR: S3 service plan '$s3_plan' is not visible in $cf_org / $cf_space." >&2
   echo "Run 'cf marketplace -e s3' to list available plans, then set CG_S3_PLAN=<plan>." >&2
   exit 1
 fi
+
+apps=(
+  supabase-api
+  supabase-auth
+  supabase-meta
+  supabase-rest
+  supabase-storage
+  supabase-studio
+)
 
 cat > "$var_file" <<VARS
 cf_org_name   = "$cf_org"
@@ -109,23 +129,59 @@ studio_instances  = 1
 studio_memory     = "128M"
 VARS
 
+record() {
+  printf '%s\n' "$*" | tee -a "$report_file"
+}
+
+capture_cmd() {
+  local name="$1"
+  shift
+
+  record "Capturing $name..."
+  "$@" >"$log_dir/$name.txt" 2>&1 || true
+}
+
+collect_diagnostics() {
+  record ""
+  record "Collecting diagnostics in $log_dir..."
+  capture_cmd "cf-target" cf target
+  capture_cmd "cf-apps" cf apps
+  capture_cmd "cf-services" cf services
+  capture_cmd "cf-routes" cf routes
+  capture_cmd "terraform-state-list" terraform -chdir="$repo_root" state list
+
+  local app
+  for app in "${apps[@]}"; do
+    capture_cmd "cf-app-$app" cf app "$app"
+    capture_cmd "cf-logs-recent-$app" cf logs "$app" --recent
+    capture_cmd "cf-events-$app" cf events "$app"
+  done
+
+  record "Diagnostics captured under: $log_dir"
+}
+
 cleanup() {
   local status=$?
-  if [[ "$skip_apply" != "1" && "$keep_deployment" != "1" ]]; then
+  local keep_after_failure=0
+
+  if (( status != 0 )); then
+    collect_diagnostics
+    if [[ "$keep_on_failure" == "1" ]]; then
+      keep_after_failure=1
+    fi
+  fi
+
+  if [[ "$skip_apply" != "1" && "$keep_deployment" != "1" && "$keep_after_failure" != "1" ]]; then
     echo "Destroying smoke-test deployment..."
-    terraform -chdir="$repo_root" destroy -auto-approve -var-file="$var_file" || true
-  elif [[ "$keep_deployment" == "1" ]]; then
-    echo "Keeping smoke-test deployment because CG_KEEP_DEPLOYMENT=1."
+    terraform -chdir="$repo_root" destroy -auto-approve -var-file="$var_file" 2>&1 | tee "$log_dir/terraform-destroy.log" || true
+  elif [[ "$keep_deployment" == "1" || "$keep_after_failure" == "1" ]]; then
+    echo "Keeping smoke-test deployment for manual inspection."
     echo "Temporary var-file: $var_file"
     echo "Temporary state: $state_file"
   fi
   exit "$status"
 }
 trap cleanup EXIT
-
-record() {
-  printf '%s\n' "$*" | tee -a "$report_file"
-}
 
 : > "$report_file"
 record "cloud.gov Supabase smoke test"
@@ -137,22 +193,13 @@ record ""
 
 if [[ "$skip_apply" != "1" ]]; then
   record "Running terraform init..."
-  terraform -chdir="$repo_root" init -reconfigure -backend-config="path=$state_file"
+  terraform -chdir="$repo_root" init -reconfigure -backend-config="path=$state_file" 2>&1 | tee "$log_dir/terraform-init.log"
 
   record "Running terraform apply..."
-  terraform -chdir="$repo_root" apply -auto-approve -var-file="$var_file"
+  terraform -chdir="$repo_root" apply -auto-approve -var-file="$var_file" 2>&1 | tee "$log_dir/terraform-apply.log"
 else
   record "Skipping terraform apply because CG_SKIP_APPLY=1."
 fi
-
-apps=(
-  supabase-api
-  supabase-auth
-  supabase-meta
-  supabase-rest
-  supabase-storage
-  supabase-studio
-)
 
 deadline=$((SECONDS + timeout_seconds))
 for app in "${apps[@]}"; do
