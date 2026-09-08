@@ -96,14 +96,14 @@ variable "jwt_secret" {
 
 variable "anon_key" {
   type        = string
-  description = "JWT for the anon role. If empty, auto-generated from jwt_secret using scripts/generate_jwt.py."
+  description = "JWT for the anon role. If empty, auto-generated from jwt_secret using the camptocamp/jwt provider."
   default     = ""
   sensitive   = true
 }
 
 variable "service_role_key" {
   type        = string
-  description = "JWT for the service_role role. If empty, auto-generated from jwt_secret using scripts/generate_jwt.py."
+  description = "JWT for the service_role role. If empty, auto-generated from jwt_secret using the camptocamp/jwt provider."
   default     = ""
   sensitive   = true
 }

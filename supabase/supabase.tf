@@ -6,6 +6,9 @@ locals {
   storage_app_name = "supabase-storage"
   studio_app_name  = "supabase-studio"
 
+  cf_org_name   = data.cloudfoundry_org.apps.name
+  cf_space_name = data.cloudfoundry_space.apps.name
+
   # A generated slug for use in domain names to avoid collisions, etc.
   slug = "-${trim(replace(replace(lower(var.cf_space_name), "/[^\\w_]/", "-"), "/-+/", "-"), "-")}"
 
@@ -20,91 +23,24 @@ locals {
   # ---------------------------------------------------------------------------
   # Database schema init SQL — idempotent DDL executed by pg-meta at startup.
   # Creates extensions, roles, schemas, and migration-tracking tables that
-  # GoTrue and Storage expect before their first run.  See also:
-  # scripts/db_schema_init.sql (documentation copy).
+  # GoTrue and Storage expect before their first run.
   # ---------------------------------------------------------------------------
-  db_schema_init_sql = <<-SQL
-    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-    CREATE EXTENSION IF NOT EXISTS pgcrypto;
-    CREATE EXTENSION IF NOT EXISTS citext;
-
-    DO $$
-    BEGIN
-      IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'anon') THEN
-        CREATE ROLE anon NOLOGIN NOINHERIT;
-      END IF;
-      IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'authenticated') THEN
-        CREATE ROLE authenticated NOLOGIN NOINHERIT;
-      END IF;
-      IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'service_role') THEN
-        CREATE ROLE service_role NOLOGIN NOINHERIT BYPASSRLS;
-      END IF;
-      IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'supabase_admin') THEN
-        CREATE ROLE supabase_admin NOLOGIN;
-      END IF;
-    END
-    $$;
-
-    DO $$
-    DECLARE
-      app_user text := current_user;
-    BEGIN
-      EXECUTE format('GRANT anon TO %I', app_user);
-      EXECUTE format('GRANT authenticated TO %I', app_user);
-      EXECUTE format('GRANT service_role TO %I', app_user);
-      EXECUTE format('GRANT supabase_admin TO %I', app_user);
-    END
-    $$;
-
-    CREATE SCHEMA IF NOT EXISTS auth;
-    CREATE SCHEMA IF NOT EXISTS storage;
-    CREATE SCHEMA IF NOT EXISTS _realtime;
-    CREATE SCHEMA IF NOT EXISTS extensions;
-
-    GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
-    GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
-    GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
-    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
-    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
-
-    GRANT USAGE ON SCHEMA auth TO service_role;
-
-    GRANT USAGE ON SCHEMA storage TO anon, authenticated, service_role;
-    GRANT ALL ON ALL TABLES IN SCHEMA storage TO anon, authenticated, service_role;
-    GRANT ALL ON ALL SEQUENCES IN SCHEMA storage TO anon, authenticated, service_role;
-    ALTER DEFAULT PRIVILEGES IN SCHEMA storage GRANT ALL ON TABLES TO anon, authenticated, service_role;
-    ALTER DEFAULT PRIVILEGES IN SCHEMA storage GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
-
-    SET search_path TO auth;
-    CREATE TABLE IF NOT EXISTS schema_migrations (
-      version VARCHAR(14) NOT NULL,
-      PRIMARY KEY (version)
-    );
-    CREATE UNIQUE INDEX IF NOT EXISTS schema_migrations_version_idx ON schema_migrations (version);
-    RESET search_path;
-
-    SET search_path TO _realtime;
-    CREATE TABLE IF NOT EXISTS schema_migrations (
-      version  BIGINT NOT NULL,
-      inserted_at TIMESTAMP(0) DEFAULT NOW(),
-      PRIMARY KEY (version)
-    );
-    RESET search_path;
-
-    SELECT 'DB schema init complete.' AS status;
-  SQL
+  db_schema_init_sql = file("${path.module}/../scripts/db_schema_init.sql")
 
   # ---------------------------------------------------------------------------
   # RDS CA bootstrap — inline shell snippet sourced by each Node.js service's
-  # startup command.  Builds a combined CA bundle (CF platform certs + AWS
+  # startup command. Builds a combined CA bundle (CF platform certs + AWS
   # GovCloud RDS CA) and exports NODE_EXTRA_CA_CERTS so that node-postgres
   # validates the RDS certificate chain instead of disabling TLS verification.
+  # The AWS bundle is loaded from the module, avoiding runtime egress dependency.
   # ---------------------------------------------------------------------------
-  rds_ca_url = "https://truststore.pki.us-gov-west-1.rds.amazonaws.com/us-gov-west-1/us-gov-west-1-bundle.pem"
-  rds_ca_setup = <<-SH
+  rds_ca_bundle_pem = file("${path.module}/us-gov-west-1-rds-ca-bundle.pem")
+  rds_ca_setup      = <<-SH
     CA_BUNDLE="/tmp/combined-ca-bundle.pem"
     cat /etc/cf-system-certificates/*.crt > "$CA_BUNDLE" 2>/dev/null || true
-    node -e "const h=require('https'),f=require('fs');h.get('${local.rds_ca_url}',r=>{let d='';r.on('data',c=>d+=c);r.on('end',()=>f.appendFileSync('$CA_BUNDLE',d))}).on('error',e=>{console.error('RDS CA fetch failed:',e.message);process.exit(1)})"
+    cat >> "$CA_BUNDLE" <<'RDS_CA_BUNDLE'
+${local.rds_ca_bundle_pem}
+RDS_CA_BUNDLE
     export NODE_EXTRA_CA_CERTS="$CA_BUNDLE"
   SH
 }
@@ -156,9 +92,13 @@ module "database" {
   rds_plan_name = var.database_plan
 }
 
+data "cloudfoundry_org" "apps" {
+  name = var.cf_org_name
+}
+
 data "cloudfoundry_space" "apps" {
-  org_name = var.cf_org_name
-  name     = var.cf_space_name
+  org  = data.cloudfoundry_org.apps.id
+  name = var.cf_space_name
 }
 
 data "cloudfoundry_domain" "public" {

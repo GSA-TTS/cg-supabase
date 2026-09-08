@@ -1,18 +1,21 @@
 locals {
-  storage_image     = "ghcr.io/gsa-tts/cg-supabase/storage"
-  storage_image_tag = "scanned"
-  storage_url       = "https://${cloudfoundry_route.supabase-storage.endpoint}:61443"
-  # storage is a Node.js service — SSL mode set via PGSSLMODE + NODE_TLS_REJECT_UNAUTHORIZED
-  storage_connection_string = "${cloudfoundry_service_key.storage.credentials.uri}?sslmode=prefer"
+  storage_image          = "ghcr.io/gsa-tts/cg-supabase/storage"
+  storage_image_tag      = "scanned"
+  storage_url            = "https://${cloudfoundry_route.supabase-storage.url}:61443"
+  storage_db_credentials = jsondecode(cloudfoundry_service_credential_binding.storage.credential_binding)
+  s3_credentials         = jsondecode(cloudfoundry_service_credential_binding.s3.credential_binding)
+  # storage is a Node.js service; RDS CA validation is configured via NODE_EXTRA_CA_CERTS.
+  storage_connection_string = "${local.storage_db_credentials.uri}?sslmode=prefer"
 }
 
 resource "cloudfoundry_route" "supabase-storage" {
-  space    = data.cloudfoundry_space.apps.id
-  domain   = data.cloudfoundry_domain.private.id
-  hostname = "supabase-storage${local.slug}"
+  space  = data.cloudfoundry_space.apps.id
+  domain = data.cloudfoundry_domain.private.id
+  host   = "supabase-storage${local.slug}"
 }
 
-resource "cloudfoundry_service_key" "storage" {
+resource "cloudfoundry_service_credential_binding" "storage" {
+  type             = "key"
   name             = "storage"
   service_instance = module.database.instance_id
 }
@@ -26,7 +29,8 @@ module "s3-private" {
   s3_plan_name = "basic"
 }
 
-resource "cloudfoundry_service_key" "s3" {
+resource "cloudfoundry_service_credential_binding" "s3" {
+  type             = "key"
   name             = "storage"
   service_instance = module.s3-private.bucket_id
 }
@@ -37,7 +41,8 @@ data "docker_registry_image" "storage" {
 
 resource "cloudfoundry_app" "supabase-storage" {
   name         = local.storage_app_name
-  space        = data.cloudfoundry_space.apps.id
+  org_name     = local.cf_org_name
+  space_name   = local.cf_space_name
   docker_image = "${local.storage_image}@${data.docker_registry_image.storage.sha256_digest}"
   timeout      = 600
   memory       = var.storage_memory
@@ -45,8 +50,8 @@ resource "cloudfoundry_app" "supabase-storage" {
   instances    = var.storage_instances
   strategy     = "none"
 
-  health_check_type              = "http"
-  health_check_http_endpoint     = "/status"
+  health_check_type               = "http"
+  health_check_http_endpoint      = "/status"
   health_check_invocation_timeout = 30
 
   command = <<-CMD
@@ -54,9 +59,11 @@ resource "cloudfoundry_app" "supabase-storage" {
     exec docker-entrypoint.sh node /app/dist/start/server.js
   CMD
 
-  routes {
-    route = cloudfoundry_route.supabase-storage.id
-  }
+  routes = [
+    {
+      route = cloudfoundry_route.supabase-storage.url
+    }
+  ]
 
   environment = {
     # https://github.com/supabase/storage
@@ -69,34 +76,34 @@ resource "cloudfoundry_app" "supabase-storage" {
     POSTGREST_URL    = local.rest_url
     PGRST_JWT_SECRET = local.effective_jwt_secret
 
-    # Database — certificate validation uses NODE_EXTRA_CA_CERTS (set by rds-ca.sh
-    # at startup) with the AWS GovCloud RDS CA bundle.
+    # Database — certificate validation uses NODE_EXTRA_CA_CERTS from the
+    # startup CA bootstrap with the AWS GovCloud RDS CA bundle.
     DATABASE_URL             = local.storage_connection_string
     DATABASE_POOL_URL        = local.storage_connection_string
     DATABASE_MULTITENANT_URL = local.storage_connection_string
     DB_SEARCH_PATH           = "storage,public,extensions"
-    DB_SUPER_USER            = cloudfoundry_service_key.storage.credentials.username
+    DB_SUPER_USER            = local.storage_db_credentials.username
     AUTH_JWT_SECRET          = local.effective_jwt_secret
     AUTH_JWT_ALGORITHM       = "HS256"
     DB_INSTALL_ROLES         = "true"
 
     # S3 backend (cloud.gov s3 broker — FIPS endpoint for GovCloud compliance)
     STORAGE_BACKEND             = "s3"
-    STORAGE_S3_BUCKET           = cloudfoundry_service_key.s3.credentials.bucket
-    STORAGE_S3_ENDPOINT         = cloudfoundry_service_key.s3.credentials.fips_endpoint
-    STORAGE_S3_REGION           = cloudfoundry_service_key.s3.credentials.region
+    STORAGE_S3_BUCKET           = local.s3_credentials.bucket
+    STORAGE_S3_ENDPOINT         = local.s3_credentials.fips_endpoint
+    STORAGE_S3_REGION           = local.s3_credentials.region
     STORAGE_S3_FORCE_PATH_STYLE = "true"
     STORAGE_S3_MAX_SOCKETS      = "200"
     # Legacy env vars (older storage-api versions read GLOBAL_S3_* instead of STORAGE_S3_*)
-    GLOBAL_S3_BUCKET            = cloudfoundry_service_key.s3.credentials.bucket
-    GLOBAL_S3_ENDPOINT          = "https://s3.${cloudfoundry_service_key.s3.credentials.region}.amazonaws.com"
-    GLOBAL_S3_REGION            = cloudfoundry_service_key.s3.credentials.region
-    GLOBAL_S3_FORCE_PATH_STYLE  = "true"
-    GLOBAL_S3_PROTOCOL          = "https"
-    AWS_ACCESS_KEY_ID           = cloudfoundry_service_key.s3.credentials.access_key_id
-    AWS_SECRET_ACCESS_KEY       = cloudfoundry_service_key.s3.credentials.secret_access_key
-    AWS_DEFAULT_REGION          = cloudfoundry_service_key.s3.credentials.region
-    REGION                      = cloudfoundry_service_key.s3.credentials.region
+    GLOBAL_S3_BUCKET           = local.s3_credentials.bucket
+    GLOBAL_S3_ENDPOINT         = "https://s3.${local.s3_credentials.region}.amazonaws.com"
+    GLOBAL_S3_REGION           = local.s3_credentials.region
+    GLOBAL_S3_FORCE_PATH_STYLE = "true"
+    GLOBAL_S3_PROTOCOL         = "https"
+    AWS_ACCESS_KEY_ID          = local.s3_credentials.access_key_id
+    AWS_SECRET_ACCESS_KEY      = local.s3_credentials.secret_access_key
+    AWS_DEFAULT_REGION         = local.s3_credentials.region
+    REGION                     = local.s3_credentials.region
 
     # Tenant config (single-tenant mode)
     TENANT_ID                 = "default-tenant"
@@ -106,8 +113,8 @@ resource "cloudfoundry_app" "supabase-storage" {
   }
 
   depends_on = [
-    cloudfoundry_service_key.storage,
-    cloudfoundry_service_key.s3,
+    cloudfoundry_service_credential_binding.storage,
+    cloudfoundry_service_credential_binding.s3,
     cloudfoundry_app.supabase-meta, # schema init creates storage schema
   ]
 }

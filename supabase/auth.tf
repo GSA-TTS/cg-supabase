@@ -1,19 +1,21 @@
 locals {
-  auth_image     = "ghcr.io/gsa-tts/cg-supabase/auth"
-  auth_image_tag = "scanned"
-  auth_app_name  = "supabase-auth"
-  auth_url       = "https://${cloudfoundry_route.supabase-auth.endpoint}:61443"
+  auth_image          = "ghcr.io/gsa-tts/cg-supabase/auth"
+  auth_image_tag      = "scanned"
+  auth_app_name       = "supabase-auth"
+  auth_url            = "https://${cloudfoundry_route.supabase-auth.url}:61443"
+  auth_db_credentials = jsondecode(cloudfoundry_service_credential_binding.auth.credential_binding)
   # GoTrue is a Go service — sslmode=prefer encrypts without requiring cert validation
-  auth_connection_string = "${cloudfoundry_service_key.auth.credentials.uri}?search_path=auth&sslmode=prefer"
+  auth_connection_string = "${local.auth_db_credentials.uri}?search_path=auth&sslmode=prefer"
 }
 
 resource "cloudfoundry_route" "supabase-auth" {
-  space    = data.cloudfoundry_space.apps.id
-  domain   = data.cloudfoundry_domain.private.id
-  hostname = "supabase-auth${local.slug}"
+  space  = data.cloudfoundry_space.apps.id
+  domain = data.cloudfoundry_domain.private.id
+  host   = "supabase-auth${local.slug}"
 }
 
-resource "cloudfoundry_service_key" "auth" {
+resource "cloudfoundry_service_credential_binding" "auth" {
+  type             = "key"
   name             = "auth"
   service_instance = module.database.instance_id
 }
@@ -24,7 +26,8 @@ data "docker_registry_image" "auth" {
 
 resource "cloudfoundry_app" "supabase-auth" {
   name         = local.auth_app_name
-  space        = data.cloudfoundry_space.apps.id
+  org_name     = local.cf_org_name
+  space_name   = local.cf_space_name
   docker_image = "${local.auth_image}@${data.docker_registry_image.auth.sha256_digest}"
   timeout      = 600
   memory       = var.auth_memory
@@ -32,13 +35,15 @@ resource "cloudfoundry_app" "supabase-auth" {
   instances    = var.auth_instances
   strategy     = "none"
 
-  health_check_type              = "http"
-  health_check_http_endpoint     = "/health"
+  health_check_type               = "http"
+  health_check_http_endpoint      = "/health"
   health_check_invocation_timeout = 30
 
-  routes {
-    route = cloudfoundry_route.supabase-auth.id
-  }
+  routes = [
+    {
+      route = cloudfoundry_route.supabase-auth.url
+    }
+  ]
 
   environment = {
     GOTRUE_API_HOST = "0.0.0.0"
@@ -68,7 +73,7 @@ resource "cloudfoundry_app" "supabase-auth" {
   }
 
   depends_on = [
-    cloudfoundry_service_key.auth,
+    cloudfoundry_service_credential_binding.auth,
     cloudfoundry_app.supabase-meta, # schema init creates auth schema + migration table
   ]
 }

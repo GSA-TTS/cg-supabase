@@ -31,13 +31,22 @@ module "supabase" {
 }
 ```
 
-See `vars.auto.tfvars-example` for the full set of options including three CF
-authentication methods (service account, SSO passcode, username/password).
+See `vars.auto.tfvars-example` for the full set of options, including service-account credentials, username/password credentials, or CF CLI config fallback after `cf login --sso`.
 
 After `terraform apply`, retrieve the auto-generated Studio password with:
 ```bash
 terraform output -raw dashboard_password
 ```
+
+## cloud.gov Smoke Test
+
+A user with access to a cloud.gov org/space can run one command to deploy this module with sandbox-safe sizing, verify the apps and public routes, print a PASS/FAIL report, and destroy the deployment by default:
+
+```bash
+CG_ORG=<org> CG_SPACE=<space> ./scripts/cloudgov_smoke_test.sh
+```
+
+The smoke test sets one instance per app and 896 MB total app memory (256 MB Kong plus 128 MB each for auth, meta, rest, storage, and studio) so it fits the default 1 GB cloud.gov sandbox quota. It uses isolated local state at `.cloudgov-smoke.tfstate` and destroys the deployment by default. If `CG_ORG` and `CG_SPACE` are omitted, the script uses the current `cf target`. Set `CG_KEEP_DEPLOYMENT=1` to leave resources running for manual inspection.
 
 ## Deployment architecture
 

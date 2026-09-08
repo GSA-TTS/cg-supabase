@@ -1,5 +1,5 @@
 locals {
-  api_url = "https://${cloudfoundry_route.supabase-api.endpoint}"
+  api_url = "https://${cloudfoundry_route.supabase-api.url}"
 
   api_username = "supabase"
   api_password = random_password.dashboard_password.result
@@ -217,11 +217,12 @@ locals {
 }
 
 module "kong" {
-  source    = "./kong"
-  name      = local.api_app_name
-  space     = data.cloudfoundry_space.apps.id
-  instances = var.api_instances
-  memory    = var.api_memory
+  source     = "./kong"
+  name       = local.api_app_name
+  org_name   = local.cf_org_name
+  space_name = local.cf_space_name
+  instances  = var.api_instances
+  memory     = var.api_memory
 
   kong_version = "3.7.1"
   kong_config  = local.kong_config
@@ -230,40 +231,44 @@ module "kong" {
 
 # This is the main URL!
 resource "cloudfoundry_route" "supabase-api" {
-  space    = data.cloudfoundry_space.apps.id
-  domain   = data.cloudfoundry_domain.public.id
-  hostname = "supabase${local.slug}"
-  target {
-    app = module.kong.app_id
-  }
+  space  = data.cloudfoundry_space.apps.id
+  domain = data.cloudfoundry_domain.public.id
+  host   = "supabase${local.slug}"
+  destinations = [
+    {
+      app_id = module.kong.app_id
+    }
+  ]
 }
 
 resource "cloudfoundry_network_policy" "api-backends" {
-  policy {
-    source_app      = local.api_app_id
-    destination_app = cloudfoundry_app.supabase-auth.id
-    port            = "61443"
-  }
-  policy {
-    source_app      = local.api_app_id
-    destination_app = cloudfoundry_app.supabase-meta.id
-    port            = "61443"
-  }
-  policy {
-    source_app      = local.api_app_id
-    destination_app = cloudfoundry_app.supabase-rest.id
-    port            = "61443"
-  }
-  policy {
-    source_app      = local.api_app_id
-    destination_app = cloudfoundry_app.supabase-storage.id
-    port            = "61443"
-  }
-  policy {
-    source_app      = local.api_app_id
-    destination_app = cloudfoundry_app.supabase-studio.id
-    port            = "61443"
-  }
+  policies = [
+    {
+      source_app      = local.api_app_id
+      destination_app = cloudfoundry_app.supabase-auth.id
+      port            = "61443"
+    },
+    {
+      source_app      = local.api_app_id
+      destination_app = cloudfoundry_app.supabase-meta.id
+      port            = "61443"
+    },
+    {
+      source_app      = local.api_app_id
+      destination_app = cloudfoundry_app.supabase-rest.id
+      port            = "61443"
+    },
+    {
+      source_app      = local.api_app_id
+      destination_app = cloudfoundry_app.supabase-storage.id
+      port            = "61443"
+    },
+    {
+      source_app      = local.api_app_id
+      destination_app = cloudfoundry_app.supabase-studio.id
+      port            = "61443"
+    }
+  ]
 }
 
 # Auto-generated dashboard password for Kong basic-auth

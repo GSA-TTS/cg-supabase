@@ -3,7 +3,12 @@ variable "name" {
   description = "name of the Kong application in Cloud Foundry"
 }
 
-variable "space" {
+variable "org_name" {
+  type        = string
+  description = "the Cloud Foundry org in which to deploy"
+}
+
+variable "space_name" {
   type        = string
   description = "the Cloud Foundry space in which to deploy"
 }

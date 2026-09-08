@@ -1,5 +1,10 @@
-# Copy this file to vars.auto.tfvars and fill in one auth option.
-# All JWT secrets are optional — they will be auto-generated if omitted.
+# Copy this file to vars.auto.tfvars and fill in the target org/space plus one
+# auth option. All JWT secrets are optional — they will be auto-generated if omitted.
+
+cf_org_name   = "your-cloudgov-org"
+cf_space_name = "your-cloudgov-space"
+
+database_plan = "micro-psql"
 
 # ---------------------------------------------------------------------------
 # Option A: Service account (recommended for CI/CD)
@@ -8,16 +13,16 @@
 # cf_client_secret = "your-oauth-client-secret"
 
 # ---------------------------------------------------------------------------
-# Option B: SSO passcode (interactive — expires quickly, use for one-off applies)
-# Get the passcode at: https://login.fr.cloud.gov/passcode
-# ---------------------------------------------------------------------------
-# cf_sso_passcode = "your-one-time-passcode"
-
-# ---------------------------------------------------------------------------
-# Option C: Username/password (legacy deployer account)
+# Option B: Username/password (legacy deployer account)
 # ---------------------------------------------------------------------------
 # cf_user     = "your_cf_user"
 # cf_password = "your_cf_password"
+
+# ---------------------------------------------------------------------------
+# Option C: CF CLI config fallback (interactive SSO)
+# ---------------------------------------------------------------------------
+# Leave the credential variables above commented out, then run:
+# cf login -a https://api.fr.cloud.gov --sso
 
 # ---------------------------------------------------------------------------
 # JWT secrets — omit to auto-generate, or provide to reuse existing values
@@ -25,3 +30,19 @@
 # jwt_secret       = "your-40-char-jwt-secret"
 # anon_key         = "your-anon-jwt"
 # service_role_key = "your-service-role-jwt"
+
+# ---------------------------------------------------------------------------
+# Sandbox-safe sizing — one instance per app, 896 MB total app memory
+# ---------------------------------------------------------------------------
+# api_instances     = 1
+# api_memory        = "256"
+# auth_instances    = 1
+# auth_memory       = "128"
+# meta_instances    = 1
+# meta_memory       = "128"
+# rest_instances    = 1
+# rest_memory       = "128"
+# storage_instances = 1
+# storage_memory    = "128"
+# studio_instances  = 1
+# studio_memory     = "128"

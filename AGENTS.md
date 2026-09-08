@@ -46,15 +46,13 @@ terraform plan
 terraform apply
 ```
 
-Credentials go in `vars.auto.tfvars` (see `vars.auto.tfvars-example` for all three auth options: service account, SSO passcode, or username/password). Uses the `cloudfoundry` provider (~> 0.53.1) against `https://api.fr.cloud.gov`.
+Credentials go in `vars.auto.tfvars` (see `vars.auto.tfvars-example` for service-account auth, username/password auth, or CF CLI config fallback after `cf login --sso`). Uses the official `cloudfoundry` provider (>= 1.1.0) against `https://api.fr.cloud.gov`.
 
 JWT secrets (`jwt_secret`, `anon_key`, `service_role_key`) are **optional** — Terraform auto-generates them via the `camptocamp/jwt` provider (`jwt_hashed_token` resource) and `hashicorp/random` if not provided.
 
-### First-time setup — DB schema initialisation
+### First-time setup — DB schema initialization
 
-`terraform apply` automatically runs `scripts/db_schema_init.sql` against the new database via a `null_resource` provisioner (triggered once per new DB instance). This creates the roles, schemas, and migration-tracking tables that GoTrue and Storage expect.
-
-**Prerequisite**: `psql` must be in `PATH` on the machine running `terraform apply`. The cloud.gov RDS endpoint is publicly accessible — no VPN or SSH tunnel required.
+`terraform apply` deploys pg-meta with `scripts/db_schema_init.sql` loaded into its environment. On startup, pg-meta runs that idempotent SQL from inside the cloud.gov app network before starting the API server. This creates the roles, schemas, and migration-tracking tables that GoTrue and Storage expect.
 
 ## Architecture
 
