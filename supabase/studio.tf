@@ -26,7 +26,7 @@ resource "cloudfoundry_app" "supabase-studio" {
   org_name     = local.cf_org_name
   space_name   = local.cf_space_name
   docker_image = "${local.studio_image}@${data.docker_registry_image.studio.sha256_digest}"
-  timeout      = 600
+  timeout      = 180
   memory       = var.studio_memory
   disk_quota   = "2048M"
   instances    = var.studio_instances

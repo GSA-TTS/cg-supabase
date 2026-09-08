@@ -44,7 +44,7 @@ resource "cloudfoundry_app" "supabase-storage" {
   org_name     = local.cf_org_name
   space_name   = local.cf_space_name
   docker_image = "${local.storage_image}@${data.docker_registry_image.storage.sha256_digest}"
-  timeout      = 600
+  timeout      = 180
   memory       = var.storage_memory
   disk_quota   = "1024M"
   instances    = var.storage_instances

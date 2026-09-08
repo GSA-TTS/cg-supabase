@@ -14,7 +14,7 @@ resource "cloudfoundry_app" "kong" {
   buildpacks       = ["https://github.com/cloudfoundry/apt-buildpack", "binary_buildpack"]
   path             = "${path.module}/${data.external.kongzip.result.path}"
   source_code_hash = filesha256("${path.module}/${data.external.kongzip.result.path}")
-  timeout          = 600
+  timeout          = 180
   memory           = var.memory
   disk_quota       = "256M"
   instances        = var.instances

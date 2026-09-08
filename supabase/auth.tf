@@ -29,7 +29,7 @@ resource "cloudfoundry_app" "supabase-auth" {
   org_name     = local.cf_org_name
   space_name   = local.cf_space_name
   docker_image = "${local.auth_image}@${data.docker_registry_image.auth.sha256_digest}"
-  timeout      = 600
+  timeout      = 180
   memory       = var.auth_memory
   disk_quota   = "256M"
   instances    = var.auth_instances

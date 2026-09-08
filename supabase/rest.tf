@@ -28,7 +28,7 @@ resource "cloudfoundry_app" "supabase-rest" {
   org_name     = local.cf_org_name
   space_name   = local.cf_space_name
   docker_image = "${local.rest_image}@${data.docker_registry_image.rest.sha256_digest}"
-  timeout      = 600
+  timeout      = 180
   memory       = var.rest_memory
   disk_quota   = "256M"
   instances    = var.rest_instances

@@ -26,7 +26,7 @@ resource "cloudfoundry_app" "supabase-meta" {
   org_name     = local.cf_org_name
   space_name   = local.cf_space_name
   docker_image = "${local.meta_image}@${data.docker_registry_image.meta.sha256_digest}"
-  timeout      = 600
+  timeout      = 180
   memory       = var.meta_memory
   disk_quota   = "1024M"
   instances    = var.meta_instances
