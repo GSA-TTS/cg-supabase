@@ -10,6 +10,7 @@
 .cloudgov-smoke-report.txt
 .cloudgov-smoke.tfvars
 .cloudgov-smoke.tfstate
+.cloudgov-smoke.terraform/
 .cloudgov-smoke.tfstate.*
 supabase/kong/app.zip
 *.env

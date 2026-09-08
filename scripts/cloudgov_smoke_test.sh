@@ -24,7 +24,8 @@ Configuration:
 
 The generated var-file forces one instance per app and 896 MB total app memory
 (256 MB Kong + 128 MB each for auth/meta/rest/storage/studio) to fit the default
-1 GB cloud.gov sandbox quota.
+1 GB cloud.gov sandbox quota. Terraform state and provider metadata are isolated
+under .cloudgov-smoke.tfstate and .cloudgov-smoke.terraform.
 USAGE
 }
 
@@ -47,6 +48,7 @@ require_cmd curl
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 var_file="$repo_root/.cloudgov-smoke.tfvars"
 state_file="$repo_root/.cloudgov-smoke.tfstate"
+data_dir="$repo_root/.cloudgov-smoke.terraform"
 report_file="$repo_root/.cloudgov-smoke-report.txt"
 keep_deployment="${CG_KEEP_DEPLOYMENT:-0}"
 skip_apply="${CG_SKIP_APPLY:-0}"
@@ -64,6 +66,18 @@ if [[ -z "$cf_org" || -z "$cf_space" ]]; then
   echo "ERROR: set CG_ORG and CG_SPACE, or run cf target against the test org/space." >&2
   exit 1
 fi
+
+if [[ -z "${TF_VAR_cf_client_id:-}" && -z "${TF_VAR_cf_user:-}" && -z "${CF_ACCESS_TOKEN:-}" ]]; then
+  cf_token="$(cf oauth-token 2>/dev/null || true)"
+  if [[ -z "$cf_token" || "$cf_token" == "bearer" ]]; then
+    echo "ERROR: no Terraform CF credentials found and cf oauth-token returned no token." >&2
+    echo "Run cf login -a https://api.fr.cloud.gov --sso, or set TF_VAR_cf_client_id/TF_VAR_cf_client_secret." >&2
+    exit 1
+  fi
+  export CF_ACCESS_TOKEN="$cf_token"
+fi
+
+export TF_DATA_DIR="$data_dir"
 
 cat > "$var_file" <<VARS
 cf_org_name   = "$cf_org"
@@ -88,10 +102,11 @@ cleanup() {
   local status=$?
   if [[ "$skip_apply" != "1" && "$keep_deployment" != "1" ]]; then
     echo "Destroying smoke-test deployment..."
-    terraform -chdir="$repo_root" destroy -auto-approve -state="$state_file" -var-file="$var_file" || true
+    terraform -chdir="$repo_root" destroy -auto-approve -var-file="$var_file" || true
   elif [[ "$keep_deployment" == "1" ]]; then
     echo "Keeping smoke-test deployment because CG_KEEP_DEPLOYMENT=1."
     echo "Temporary var-file: $var_file"
+    echo "Temporary state: $state_file"
   fi
   exit "$status"
 }
@@ -110,10 +125,10 @@ record ""
 
 if [[ "$skip_apply" != "1" ]]; then
   record "Running terraform init..."
-  terraform -chdir="$repo_root" init -backend=false
+  terraform -chdir="$repo_root" init -reconfigure -backend-config="path=$state_file"
 
   record "Running terraform apply..."
-  terraform -chdir="$repo_root" apply -auto-approve -state="$state_file" -var-file="$var_file"
+  terraform -chdir="$repo_root" apply -auto-approve -var-file="$var_file"
 else
   record "Skipping terraform apply because CG_SKIP_APPLY=1."
 fi
@@ -147,9 +162,9 @@ for app in "${apps[@]}"; do
   done
 done
 
-api_url="$(terraform -chdir="$repo_root" output -state="$state_file" -raw api_url)"
-dashboard_username="$(terraform -chdir="$repo_root" output -state="$state_file" -raw dashboard_username)"
-dashboard_password="$(terraform -chdir="$repo_root" output -state="$state_file" -raw dashboard_password)"
+api_url="$(terraform -chdir="$repo_root" output -raw api_url)"
+dashboard_username="$(terraform -chdir="$repo_root" output -raw dashboard_username)"
+dashboard_password="$(terraform -chdir="$repo_root" output -raw dashboard_password)"
 
 check_http() {
   local label="$1"
