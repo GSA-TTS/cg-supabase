@@ -6,6 +6,7 @@ cf_space_name = "your-cloudgov-space"
 
 database_plan = "micro-psql"
 s3_plan_name  = "basic"
+image_tag     = "scanned"
 
 # Use existing backing services instead of creating them with Terraform.
 # database_service_instance_name = "supabase-db"

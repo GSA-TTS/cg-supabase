@@ -26,6 +26,7 @@ Configuration:
   CG_DATABASE_SERVICE_NAME=supabase-db  RDS service name. Default: supabase-db.
   CG_S3_PLAN=basic-sandbox     S3 service plan. Default: basic-sandbox.
   CG_S3_SERVICE_NAME=supabase-private-s3  S3 service name. Default: supabase-private-s3.
+  CG_IMAGE_TAG=pr-<branch>     GHCR image tag to deploy. Defaults to current branch tag.
   CG_TF_LOG=DEBUG              Optional Terraform log level. Logs may contain secrets.
 
 The generated var-file forces one instance per app and 896 MB total app memory
@@ -67,6 +68,8 @@ s3_plan="${CG_S3_PLAN:-basic-sandbox}"
 database_plan="${CG_DATABASE_PLAN:-micro-psql}"
 database_service_name="${CG_DATABASE_SERVICE_NAME:-supabase-db}"
 s3_service_name="${CG_S3_SERVICE_NAME:-supabase-private-s3}"
+default_image_tag="pr-$(git -C "$repo_root" branch --show-current | tr '/_' '--' | tr -cd '[:alnum:].-')"
+image_tag="${CG_IMAGE_TAG:-$default_image_tag}"
 created_database_service=0
 created_s3_service=0
 smoke_checks_passed=0
@@ -300,6 +303,7 @@ cf_org_name   = "$cf_org"
 cf_space_name = "$cf_space"
 database_plan = "$database_plan"
 s3_plan_name  = "$s3_plan"
+image_tag     = "$image_tag"
 database_service_instance_name = "$database_service_name"
 s3_service_instance_name       = "$s3_service_name"
 
@@ -322,6 +326,7 @@ record "Org: $cf_org"
 record "Space: $cf_space"
 record "RDS service: $database_service_name ($database_plan)"
 record "S3 service: $s3_service_name ($s3_plan)"
+record "Image tag: $image_tag"
 record "Sandbox-safe app memory: 896 MB total"
 record ""
 

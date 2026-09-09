@@ -14,6 +14,7 @@ module "supabase" {
 
   database_service_instance_name = var.database_service_instance_name
   s3_service_instance_name       = var.s3_service_instance_name
+  image_tag                      = var.image_tag
 
   api_instances     = var.api_instances
   api_memory        = var.api_memory

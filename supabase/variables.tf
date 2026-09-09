@@ -33,6 +33,12 @@ variable "s3_service_instance_name" {
   default     = ""
 }
 
+variable "image_tag" {
+  type        = string
+  description = "Tag to use for ghcr.io/gsa-tts/cg-supabase service images. Defaults to the main-branch scanned tag."
+  default     = "scanned"
+}
+
 variable "api_instances" {
   type        = number
   description = "the number of instances of the api application to run (default: 2)"

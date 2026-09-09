@@ -107,6 +107,8 @@ A user with access to a cloud.gov org/space can run one command to deploy this m
 CG_ORG=<org> CG_SPACE=<space> ./scripts/cloudgov_smoke_test.sh
 ```
 
+For PR branches, first run the `Pull, scan, and push Supabase images` workflow on the branch. The workflow publishes branch-scoped GHCR tags like `pr-update-terraform`; the smoke test uses the current branch tag by default. Override with `CG_IMAGE_TAG=<tag>` when testing a different image tag.
+
 The smoke test sets one instance per app, 896 MB total app memory (256 MB Kong plus 128 MB each for auth, meta, rest, storage, and studio), RDS `micro-psql`, and S3 `basic-sandbox` so it fits and works in the default 1 GB cloud.gov sandbox quota. It creates/reuses those backing services with the `cf` CLI before running Terraform, avoiding a `cloudfoundry` provider v1.18.0 managed-service creation crash seen when cloud.gov omits `maintenance_info` from a service response. It also removes stale Terraform-managed backing-service resources from the isolated smoke-test state before apply. It uses isolated Terraform metadata under `.cloudgov-smoke.terraform` and local state at `.cloudgov-smoke.tfstate`, then destroys the deployment by default. If `CG_ORG` and `CG_SPACE` are omitted, the script uses the current `cf target`. If Terraform credentials are not set, the script passes the current `cf oauth-token` to the provider as `CF_ACCESS_TOKEN`. On failure, diagnostics are written under `.cloudgov-smoke-logs/`; set `CG_KEEP_ON_FAILURE=1` or `CG_KEEP_DEPLOYMENT=1` to leave resources running for manual inspection.
 
 ## Docker Compose Development Environment

@@ -32,6 +32,12 @@ variable "s3_service_instance_name" {
   default     = ""
 }
 
+variable "image_tag" {
+  type        = string
+  description = "Tag to use for ghcr.io/gsa-tts/cg-supabase service images. Defaults to the main-branch scanned tag."
+  default     = "scanned"
+}
+
 # ---------------------------------------------------------------------------
 # Cloud Foundry authentication — provide service-account credentials,
 # username/password credentials, or neither to use CF CLI config fallback.

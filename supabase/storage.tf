@@ -1,6 +1,6 @@
 locals {
   storage_image          = "ghcr.io/gsa-tts/cg-supabase/storage"
-  storage_image_tag      = "scanned"
+  storage_image_tag      = var.image_tag
   storage_url            = "https://supabase-storage${local.slug}.apps.internal:61443"
   storage_db_credentials = jsondecode(cloudfoundry_service_credential_binding.storage.credential_binding).credentials
   s3_credentials         = jsondecode(cloudfoundry_service_credential_binding.s3.credential_binding).credentials

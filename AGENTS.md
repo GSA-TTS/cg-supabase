@@ -56,7 +56,7 @@ JWT secrets (`jwt_secret`, `anon_key`, `service_role_key`) are **optional** — 
 
 ### Smoke test
 
-Use `scripts/cloudgov_smoke_test.sh` to run a live cloud.gov deployment check. It targets the current `cf target` or `CG_ORG`/`CG_SPACE`, uses sandbox-safe sizing, creates/reuses backing RDS and S3 services with the `cf` CLI, and reports PASS/FAIL for app startup plus Kong-routed endpoints. It destroys by default; use `CG_KEEP_ON_FAILURE=1` when diagnosing.
+Use `scripts/cloudgov_smoke_test.sh` to run a live cloud.gov deployment check. It targets the current `cf target` or `CG_ORG`/`CG_SPACE`, uses sandbox-safe sizing, creates/reuses backing RDS and S3 services with the `cf` CLI, and reports PASS/FAIL for app startup plus Kong-routed endpoints. For PR branches, run the image workflow on the branch first; it publishes a branch tag such as `pr-update-terraform`, and the smoke test uses the current branch tag by default. Override with `CG_IMAGE_TAG=<tag>`. It destroys by default; use `CG_KEEP_ON_FAILURE=1` when diagnosing.
 
 ## Architecture
 

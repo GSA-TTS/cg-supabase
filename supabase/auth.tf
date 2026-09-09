@@ -1,6 +1,6 @@
 locals {
   auth_image          = "ghcr.io/gsa-tts/cg-supabase/auth"
-  auth_image_tag      = "scanned"
+  auth_image_tag      = var.image_tag
   auth_app_name       = "supabase-auth"
   auth_url            = "https://supabase-auth${local.slug}.apps.internal:61443"
   auth_db_credentials = jsondecode(cloudfoundry_service_credential_binding.auth.credential_binding).credentials

@@ -1,6 +1,6 @@
 locals {
   rest_image          = "ghcr.io/gsa-tts/cg-supabase/rest"
-  rest_image_tag      = "scanned"
+  rest_image_tag      = var.image_tag
   rest_url            = "https://supabase-rest${local.slug}.apps.internal:61443"
   rest_db_credentials = jsondecode(cloudfoundry_service_credential_binding.rest.credential_binding).credentials
   # PostgREST is a Go service — sslmode=prefer encrypts without requiring cert validation
