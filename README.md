@@ -40,16 +40,6 @@ After `terraform apply`, retrieve the auto-generated Studio password with:
 terraform output -raw dashboard_password
 ```
 
-## cloud.gov Smoke Test
-
-A user with access to a cloud.gov org/space can run one command to deploy this module with sandbox-safe sizing, verify the apps and public routes, print a PASS/FAIL report, and destroy the deployment by default:
-
-```bash
-CG_ORG=<org> CG_SPACE=<space> ./scripts/cloudgov_smoke_test.sh
-```
-
-The smoke test sets one instance per app, 896 MB total app memory (256 MB Kong plus 128 MB each for auth, meta, rest, storage, and studio), RDS `micro-psql`, and S3 `basic-sandbox` so it fits the default 1 GB cloud.gov sandbox quota. It creates/reuses those backing services with the `cf` CLI before running Terraform, avoiding a `cloudfoundry` provider v1.18.0 managed-service creation crash seen when cloud.gov omits `maintenance_info` from a service response. It also removes stale Terraform-managed backing-service resources from the isolated smoke-test state before apply. It uses isolated Terraform metadata under `.cloudgov-smoke.terraform` and local state at `.cloudgov-smoke.tfstate`, then destroys the deployment by default. If `CG_ORG` and `CG_SPACE` are omitted, the script uses the current `cf target`. If Terraform credentials are not set, the script passes the current `cf oauth-token` to the provider as `CF_ACCESS_TOKEN`. On failure, diagnostics are written under `.cloudgov-smoke-logs/`; set `CG_KEEP_ON_FAILURE=1` or `CG_KEEP_DEPLOYMENT=1` to leave resources running for manual inspection.
-
 ## Deployment architecture
 
 All services run in a single Cloud Foundry space on cloud.gov.  Kong is the
@@ -108,6 +98,16 @@ native HTTP listen port.
 All six services (Kong, GoTrue, PostgREST, Studio, Storage, pg-meta) deploy
 and run on cloud.gov.  See `docs/pr-terraform-working-approach.md` for
 known limitations and the rationale behind each SSL workaround.
+
+## cloud.gov Smoke Test
+
+A user with access to a cloud.gov org/space can run one command to deploy this module with sandbox-safe sizing, verify the apps and public routes, print a PASS/FAIL report, and destroy the deployment by default:
+
+```bash
+CG_ORG=<org> CG_SPACE=<space> ./scripts/cloudgov_smoke_test.sh
+```
+
+The smoke test sets one instance per app, 896 MB total app memory (256 MB Kong plus 128 MB each for auth, meta, rest, storage, and studio), RDS `micro-psql`, and S3 `basic-sandbox` so it fits the default 1 GB cloud.gov sandbox quota. It creates/reuses those backing services with the `cf` CLI before running Terraform, avoiding a `cloudfoundry` provider v1.18.0 managed-service creation crash seen when cloud.gov omits `maintenance_info` from a service response. It also removes stale Terraform-managed backing-service resources from the isolated smoke-test state before apply. It uses isolated Terraform metadata under `.cloudgov-smoke.terraform` and local state at `.cloudgov-smoke.tfstate`, then destroys the deployment by default. If `CG_ORG` and `CG_SPACE` are omitted, the script uses the current `cf target`. If Terraform credentials are not set, the script passes the current `cf oauth-token` to the provider as `CF_ACCESS_TOKEN`. On failure, diagnostics are written under `.cloudgov-smoke-logs/`; set `CG_KEEP_ON_FAILURE=1` or `CG_KEEP_DEPLOYMENT=1` to leave resources running for manual inspection.
 
 ## Docker Compose Development Environment
 
