@@ -6,7 +6,7 @@ terraform {
   required_providers {
     cloudfoundry = {
       source  = "cloudfoundry/cloudfoundry"
-      version = ">= 1.1.0"
+      version = "~> 1.18.0"
     }
     jwt = {
       source  = "camptocamp/jwt"

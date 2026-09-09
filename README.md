@@ -54,7 +54,7 @@ The smoke test sets one instance per app, 896 MB total app memory (256 MB Kong p
 
 All services run in a single Cloud Foundry space on cloud.gov.  Kong is the
 only publicly-routed app; all backend services communicate over private CF
-internal routes (`apps.internal`) on port 61443.
+internal routes (`apps.internal`) on each app's HTTP listen port.
 
 ```mermaid
     C4Context
@@ -80,18 +80,18 @@ internal routes (`apps.internal`) on port 61443.
 
       Rel(client_app, kong, "API requests", "HTTPS")
       Rel(admin_user, kong, "Dashboard (basic-auth)", "HTTPS")
-      Rel(kong, auth, "/auth/v1/*", "apps.internal:61443")
-      Rel(kong, rest, "/rest/v1/*", "apps.internal:61443")
-      Rel(kong, storage, "/storage/v1/*", "apps.internal:61443")
-      Rel(kong, meta, "/pg/*", "apps.internal:61443")
-      Rel(kong, studio, "/* (dashboard)", "apps.internal:61443")
+      Rel(kong, auth, "/auth/v1/*", "apps.internal:8080")
+      Rel(kong, rest, "/rest/v1/*", "apps.internal:3000")
+      Rel(kong, storage, "/storage/v1/*", "apps.internal:5000")
+      Rel(kong, meta, "/pg/*", "apps.internal:8080")
+      Rel(kong, studio, "/* (dashboard)", "apps.internal:3000")
       Rel(rest, postgres_db, "Queries")
       Rel(auth, postgres_db, "Auth schema")
       Rel(storage, postgres_db, "File metadata")
       Rel(storage, s3_bucket, "File objects")
       Rel(meta, postgres_db, "Schema introspection")
-      Rel(studio, rest, "SSR API calls", "apps.internal:61443")
-      Rel(studio, meta, "Table editor", "via meta")
+      Rel(studio, rest, "SSR API calls", "apps.internal:3000")
+      Rel(studio, meta, "Table editor", "apps.internal:8080")
 ```
 
 **Not deployed by this module** (require platform features unavailable on cloud.gov):

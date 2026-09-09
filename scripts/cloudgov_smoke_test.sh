@@ -31,7 +31,8 @@ Configuration:
 The generated var-file forces one instance per app and 896 MB total app memory
 (256 MB Kong + 128 MB each for auth/meta/rest/storage/studio) to fit the default
 1 GB cloud.gov sandbox quota. Terraform state and provider metadata are isolated
-under .cloudgov-smoke.tfstate and .cloudgov-smoke.terraform.
+under .cloudgov-smoke.tfstate and .cloudgov-smoke.terraform and are deleted
+after successful cleanup.
 USAGE
 }
 
@@ -68,6 +69,7 @@ database_service_name="${CG_DATABASE_SERVICE_NAME:-supabase-db}"
 s3_service_name="${CG_S3_SERVICE_NAME:-supabase-private-s3}"
 created_database_service=0
 created_s3_service=0
+smoke_checks_passed=0
 
 cf_target_field() {
   local label="$1"
@@ -152,6 +154,25 @@ wait_for_service() {
   done
 }
 
+wait_for_service_delete() {
+  local service_name="$1"
+  local deadline=$((SECONDS + timeout_seconds))
+
+  while true; do
+    if ! cf_service_exists "$service_name"; then
+      record "PASS service $service_name deleted"
+      return 0
+    fi
+
+    if (( SECONDS >= deadline )); then
+      record "FAIL service $service_name did not delete within ${timeout_seconds}s"
+      return 1
+    fi
+
+    sleep 10
+  done
+}
+
 apps=(
   supabase-api
   supabase-auth
@@ -192,6 +213,7 @@ collect_diagnostics() {
 
 cleanup() {
   local status=$?
+  local cleanup_status=0
   local keep_after_failure=0
 
   if (( status != 0 )); then
@@ -203,18 +225,46 @@ cleanup() {
 
   if [[ "$skip_apply" != "1" && "$keep_deployment" != "1" && "$keep_after_failure" != "1" ]]; then
     echo "Destroying smoke-test deployment..."
-    terraform -chdir="$repo_root" destroy -auto-approve -var-file="$var_file" 2>&1 | tee "$log_dir/terraform-destroy.log" || true
+    if ! terraform -chdir="$repo_root" destroy -auto-approve -var-file="$var_file" 2>&1 | tee "$log_dir/terraform-destroy.log"; then
+      cleanup_status=1
+    fi
     if [[ "$created_s3_service" == "1" ]]; then
-      cf delete-service "$s3_service_name" -f 2>&1 | tee "$log_dir/cf-delete-service-$s3_service_name.log" || true
+      if ! cf delete-service "$s3_service_name" -f 2>&1 | tee "$log_dir/cf-delete-service-$s3_service_name.log"; then
+        cleanup_status=1
+      elif ! wait_for_service_delete "$s3_service_name"; then
+        cleanup_status=1
+      fi
     fi
     if [[ "$created_database_service" == "1" ]]; then
-      cf delete-service "$database_service_name" -f 2>&1 | tee "$log_dir/cf-delete-service-$database_service_name.log" || true
+      if ! cf delete-service "$database_service_name" -f 2>&1 | tee "$log_dir/cf-delete-service-$database_service_name.log"; then
+        cleanup_status=1
+      elif ! wait_for_service_delete "$database_service_name"; then
+        cleanup_status=1
+      fi
     fi
   elif [[ "$keep_deployment" == "1" || "$keep_after_failure" == "1" ]]; then
     echo "Keeping smoke-test deployment for manual inspection."
     echo "Temporary var-file: $var_file"
     echo "Temporary state: $state_file"
+    echo "WARNING: retained Terraform state contains sensitive credentials."
   fi
+
+  if (( status == 0 && cleanup_status != 0 )); then
+    echo "ERROR: smoke checks passed, but cleanup failed. See $log_dir." >&2
+    exit "$cleanup_status"
+  fi
+
+  if (( status == 0 )) && [[ "$keep_deployment" != "1" ]]; then
+    rm -f "$var_file" "$state_file" "$state_file.backup"
+    rm -rf "$data_dir"
+  fi
+
+  if (( status == 0 && smoke_checks_passed == 1 )); then
+    record ""
+    record "PASS cloud.gov Supabase smoke test completed"
+    record "Report: $report_file"
+  fi
+
   exit "$status"
 }
 trap cleanup EXIT
@@ -282,10 +332,16 @@ if [[ "$skip_apply" != "1" ]]; then
   # Older smoke-test runs let Terraform create backing services. The current
   # smoke test pre-creates them with cf CLI to avoid a provider crash, so remove
   # any stale managed-service resources from this isolated state before apply.
-  terraform -chdir="$repo_root" state rm 'module.supabase.module.database[0].cloudfoundry_service_instance.rds' >"$log_dir/terraform-state-rm-database.log" 2>&1 || true
-  terraform -chdir="$repo_root" state rm 'module.supabase.module.database.cloudfoundry_service_instance.rds' >>"$log_dir/terraform-state-rm-database.log" 2>&1 || true
-  terraform -chdir="$repo_root" state rm 'module.supabase.module.s3-private[0].cloudfoundry_service_instance.bucket' >"$log_dir/terraform-state-rm-s3.log" 2>&1 || true
-  terraform -chdir="$repo_root" state rm 'module.supabase.module.s3-private.cloudfoundry_service_instance.bucket' >>"$log_dir/terraform-state-rm-s3.log" 2>&1 || true
+  state_entries="$(terraform -chdir="$repo_root" state list 2>/dev/null || true)"
+  for state_address in \
+    'module.supabase.module.database[0].cloudfoundry_service_instance.rds' \
+    'module.supabase.module.database.cloudfoundry_service_instance.rds' \
+    'module.supabase.module.s3-private[0].cloudfoundry_service_instance.bucket' \
+    'module.supabase.module.s3-private.cloudfoundry_service_instance.bucket'; do
+    if grep -Fxq "$state_address" <<<"$state_entries"; then
+      terraform -chdir="$repo_root" state rm "$state_address" >>"$log_dir/terraform-state-rm-managed-services.log" 2>&1
+    fi
+  done
 
   record "Running terraform apply..."
   terraform -chdir="$repo_root" apply -auto-approve -var-file="$var_file" 2>&1 | tee "$log_dir/terraform-apply.log"
@@ -316,6 +372,7 @@ done
 api_url="$(terraform -chdir="$repo_root" output -raw api_url)"
 dashboard_username="$(terraform -chdir="$repo_root" output -raw dashboard_username)"
 dashboard_password="$(terraform -chdir="$repo_root" output -raw dashboard_password)"
+anon_key="$(terraform -chdir="$repo_root" output -raw anon_key)"
 
 check_http() {
   local label="$1"
@@ -335,12 +392,11 @@ check_http() {
 
 record ""
 record "Checking public endpoints at $api_url..."
-check_http "Kong gateway" "$api_url/" '^(200|301|302|401|404)$'
+check_http "Kong gateway" "$api_url/" '^401$'
 # Studio may redirect unauthenticated browser flows after Kong basic-auth succeeds.
 check_http "Studio through Kong basic-auth" "$api_url/" '^(200|301|302|303|307|308)$' --user "$dashboard_username:$dashboard_password"
-check_http "Auth health through Kong" "$api_url/auth/v1/health" '^(200|401|404)$' --header 'apikey: smoke-test'
-check_http "REST route through Kong" "$api_url/rest/v1/" '^(200|401|404)$' --header 'apikey: smoke-test'
+check_http "Auth health through Kong" "$api_url/auth/v1/health" '^200$' --header "apikey: $anon_key"
+check_http "REST route through Kong" "$api_url/rest/v1/" '^(200|300|404)$' --header "apikey: $anon_key" --header "Authorization: Bearer $anon_key"
+check_http "Storage status through Kong" "$api_url/storage/v1/status" '^200$'
 
-record ""
-record "PASS cloud.gov Supabase smoke test completed"
-record "Report: $report_file"
+smoke_checks_passed=1

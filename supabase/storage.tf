@@ -131,3 +131,13 @@ resource "cloudfoundry_app" "supabase-storage" {
     cloudfoundry_app.supabase-meta, # schema init creates storage schema
   ]
 }
+
+resource "cloudfoundry_network_policy" "storage-rest" {
+  policies = [
+    {
+      source_app      = cloudfoundry_app.supabase-storage.id
+      destination_app = cloudfoundry_app.supabase-rest.id
+      port            = "3000"
+    }
+  ]
+}

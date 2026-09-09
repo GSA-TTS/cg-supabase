@@ -13,3 +13,9 @@ output "dashboard_password" {
   value       = module.supabase.dashboard_password
   sensitive   = true
 }
+
+output "anon_key" {
+  description = "Anon JWT used by Kong key-auth and public Supabase clients. Retrieve with: terraform output -raw anon_key"
+  value       = module.supabase.anon_key
+  sensitive   = true
+}

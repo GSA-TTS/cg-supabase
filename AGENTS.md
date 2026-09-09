@@ -46,7 +46,7 @@ terraform plan
 terraform apply
 ```
 
-Credentials go in `vars.auto.tfvars` (see `vars.auto.tfvars-example` for service-account auth, username/password auth, or CF CLI config fallback after `cf login --sso`). Uses the official `cloudfoundry` provider (>= 1.1.0) against `https://api.fr.cloud.gov`.
+Credentials go in `vars.auto.tfvars` (see `vars.auto.tfvars-example` for service-account auth, username/password auth, or CF CLI config fallback after `cf login --sso`). Uses the official `cloudfoundry` provider (`~> 1.18.0`) against `https://api.fr.cloud.gov`.
 
 JWT secrets (`jwt_secret`, `anon_key`, `service_role_key`) are **optional** — Terraform auto-generates them via the `camptocamp/jwt` provider (`jwt_hashed_token` resource) and `hashicorp/random` if not provided.
 
