@@ -73,15 +73,14 @@ resource "cloudfoundry_app" "supabase-storage" {
 
   command = <<-CMD
     ${local.rds_ca_setup}
+    export SERVER_PORT="$PORT"
     exec docker-entrypoint.sh node /app/dist/start/server.js
   CMD
 
   environment = {
     # https://github.com/supabase/storage
 
-    # Server
-    PORT        = "8080"
-    SERVER_PORT = "8080"
+    # Server port is platform-owned PORT; the start command maps it to SERVER_PORT.
 
     # Auth
     ANON_KEY    = local.effective_anon_key

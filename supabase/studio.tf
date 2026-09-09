@@ -42,15 +42,15 @@ resource "cloudfoundry_app" "supabase-studio" {
 
   command = <<-CMD
     ${local.rds_ca_setup}
+    export STUDIO_PORT="$PORT"
     exec /usr/local/bin/docker-entrypoint.sh node /app/apps/studio/server.js
   CMD
 
   environment = {
     # https://github.com/supabase/supabase/blob/master/apps/studio/.env
 
-    HOSTNAME                  = "0.0.0.0"
-    PORT                      = "8080"
-    STUDIO_PORT               = "8080"
+    HOSTNAME = "0.0.0.0"
+    # Studio reads STUDIO_PORT; the start command maps platform-owned PORT to it.
     DEFAULT_ORGANIZATION_NAME = "Default Organization"
     DEFAULT_PROJECT_NAME      = "Default Project"
 
