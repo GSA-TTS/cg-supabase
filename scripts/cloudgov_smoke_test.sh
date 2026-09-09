@@ -360,8 +360,13 @@ for app in "${apps[@]}"; do
     fi
 
     if (( SECONDS >= deadline )); then
+      recent_logs="$(cf logs "$app" --recent 2>&1 || true)"
       record "FAIL app $app did not start within ${timeout_seconds}s"
+      if grep -Eq 'Listening on port 8080' <<<"$recent_logs" && grep -Eq 'failed to make TCP connection to .*:3000' <<<"$recent_logs"; then
+        record "FAIL app $app is listening on 8080, but Cloud Foundry is health-checking port 3000. Rebuild and publish the scanned image so its Docker metadata exposes port 8080."
+      fi
       printf '%s\n' "$app_status" | tee -a "$report_file"
+      printf '%s\n' "$recent_logs" >"$log_dir/cf-logs-recent-$app-timeout.txt"
       exit 1
     fi
 
