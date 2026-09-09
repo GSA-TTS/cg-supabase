@@ -2,12 +2,10 @@ FROM supabase/gotrue:v2.196.0 AS original
 FROM scratch
 COPY --from=original / /
 
-# Make the PORT overrideable so the platform can do its thing
-ENV PORT=9999
-ENV GOTRUE_API_PORT=9999
+EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:9999/health || exit 1
+  CMD curl -f http://localhost:8080/health || exit 1
 
 ENTRYPOINT ["/usr/local/bin/gotrue"]

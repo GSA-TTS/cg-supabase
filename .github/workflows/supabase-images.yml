@@ -73,16 +73,26 @@ jobs:
         with:
           platforms: ${{ matrix.platform }}
 
-      - name: Pull Docker Image
+      - name: Pull or build Docker Image
         if: matrix.image.scan == true
-        run: docker pull ${{ matrix.image.name }}
+        run: |
+          if [ -f ".docker/${{ matrix.image.short-name }}.Dockerfile" ]; then
+            docker build \
+              --platform ${{ matrix.platform }} \
+              -f ".docker/${{ matrix.image.short-name }}.Dockerfile" \
+              -t "cg-supabase-${{ matrix.image.short-name }}:scan" \
+              .
+          else
+            docker pull ${{ matrix.image.name }}
+            docker tag ${{ matrix.image.name }} "cg-supabase-${{ matrix.image.short-name }}:scan"
+          fi
 
       - name: Scan Image
         if: matrix.image.scan == true
         uses: aquasecurity/trivy-action@0.35.0
         with:
           scan-type: 'image'
-          image-ref: ${{ matrix.image.name }}
+          image-ref: cg-supabase-${{ matrix.image.short-name }}:scan
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
@@ -99,9 +109,9 @@ jobs:
         if: matrix.image.scan == true
         run: |
           date=$(date +%Y%m%d)
-          docker tag ${{ matrix.image.name }} ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:latest
-          docker tag ${{ matrix.image.name }} ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:scanned
-          docker tag ${{ matrix.image.name }} ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:$date
+          docker tag cg-supabase-${{ matrix.image.short-name }}:scan ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:latest
+          docker tag cg-supabase-${{ matrix.image.short-name }}:scan ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:scanned
+          docker tag cg-supabase-${{ matrix.image.short-name }}:scan ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:$date
 
       - name: Login to GitHub Container Registry
         if: matrix.image.scan == true

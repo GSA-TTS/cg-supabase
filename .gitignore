@@ -15,5 +15,5 @@
 .cloudgov-smoke.tfstate.*
 supabase/kong/app.zip
 *.env
-/.docker
+# Dockerfiles in .docker are source files for GHCR image builds.
 /docker/volumes/db/data
