@@ -1,7 +1,7 @@
 locals {
   studio_image          = "ghcr.io/gsa-tts/cg-supabase/studio"
   studio_image_tag      = "scanned"
-  studio_url            = "http://supabase-studio${local.slug}.apps.internal:3000"
+  studio_url            = "https://supabase-studio${local.slug}.apps.internal:61443"
   studio_db_credentials = jsondecode(cloudfoundry_service_credential_binding.studio.credential_binding).credentials
 }
 
@@ -101,7 +101,7 @@ resource "cloudfoundry_network_policy" "studio-rest" {
     {
       source_app      = cloudfoundry_app.supabase-studio.id
       destination_app = cloudfoundry_app.supabase-rest.id
-      port            = "3000"
+      port            = "61443"
     }
   ]
 }
@@ -112,7 +112,7 @@ resource "cloudfoundry_network_policy" "studio-meta" {
     {
       source_app      = cloudfoundry_app.supabase-studio.id
       destination_app = cloudfoundry_app.supabase-meta.id
-      port            = "8080"
+      port            = "61443"
     }
   ]
 }
