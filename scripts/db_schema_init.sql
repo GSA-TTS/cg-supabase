@@ -13,8 +13,10 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS citext;
 
 -- ---------------------------------------------------------------------------
--- Roles required by Supabase services
+-- Roles required by Supabase services.
 -- (pgjwt is not available on managed RDS — GoTrue signs JWTs natively.)
+-- The postgres role is a compatibility NOLOGIN role for upstream migrations;
+-- cloud.gov RDS service-key databases do not expose a postgres login role.
 -- ---------------------------------------------------------------------------
 DO $$
 BEGIN
@@ -30,10 +32,16 @@ BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'supabase_admin') THEN
     CREATE ROLE supabase_admin NOLOGIN;
   END IF;
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'postgres') THEN
+    CREATE ROLE postgres NOLOGIN;
+  END IF;
 END
 $$;
 
--- Grant roles to the RDS app user so PostgREST can SET ROLE
+-- Grant roles to the RDS app user so PostgREST can SET ROLE. The postgres
+-- compatibility role is required by upstream GoTrue migrations, which grant
+-- SELECT on auth tables to postgres even on managed databases where no postgres
+-- login role exists.
 DO $$
 DECLARE
   app_user text := current_user;
@@ -42,6 +50,7 @@ BEGIN
   EXECUTE format('GRANT authenticated TO %I', app_user);
   EXECUTE format('GRANT service_role TO %I', app_user);
   EXECUTE format('GRANT supabase_admin TO %I', app_user);
+  EXECUTE format('GRANT postgres TO %I', app_user);
 END
 $$;
 
@@ -54,21 +63,21 @@ CREATE SCHEMA IF NOT EXISTS _realtime;
 CREATE SCHEMA IF NOT EXISTS extensions;
 
 -- Permissions on public
-GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
-GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+GRANT USAGE ON SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO postgres, anon, authenticated, service_role;
 
 -- Permissions on auth
-GRANT USAGE ON SCHEMA auth TO service_role;
+GRANT USAGE ON SCHEMA auth TO postgres, service_role;
 
 -- Permissions on storage
-GRANT USAGE ON SCHEMA storage TO anon, authenticated, service_role;
-GRANT ALL ON ALL TABLES IN SCHEMA storage TO anon, authenticated, service_role;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA storage TO anon, authenticated, service_role;
-ALTER DEFAULT PRIVILEGES IN SCHEMA storage GRANT ALL ON TABLES TO anon, authenticated, service_role;
-ALTER DEFAULT PRIVILEGES IN SCHEMA storage GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+GRANT USAGE ON SCHEMA storage TO postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA storage TO postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA storage TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA storage GRANT ALL ON TABLES TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA storage GRANT ALL ON SEQUENCES TO postgres, anon, authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
 -- GoTrue: pre-create auth.schema_migrations
