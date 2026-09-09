@@ -84,8 +84,9 @@ resource "cloudfoundry_app" "supabase-storage" {
     SERVICE_KEY = local.effective_service_role_key
 
     # PostgREST integration (storage uses PostgREST for permission checks)
-    POSTGREST_URL    = local.rest_url
-    PGRST_JWT_SECRET = local.effective_jwt_secret
+    POSTGREST_URL     = local.rest_url
+    PGRST_JWT_SECRET  = local.effective_jwt_secret
+    RDS_CA_BUNDLE_PEM = local.rds_ca_bundle_pem
 
     # Database — certificate validation uses NODE_EXTRA_CA_CERTS from the
     # startup CA bootstrap with the AWS GovCloud RDS CA bundle.

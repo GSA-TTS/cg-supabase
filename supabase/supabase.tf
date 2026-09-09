@@ -35,15 +35,14 @@ locals {
   # startup command. Builds a combined CA bundle (CF platform certs + AWS
   # GovCloud RDS CA) and exports NODE_EXTRA_CA_CERTS so that node-postgres
   # validates the RDS certificate chain instead of disabling TLS verification.
-  # The AWS bundle is loaded from the module, avoiding runtime egress dependency.
+  # The AWS bundle is injected through env instead of the command to keep CF
+  # manifest upload payloads small enough for cloud.gov.
   # ---------------------------------------------------------------------------
   rds_ca_bundle_pem = file("${path.module}/us-gov-west-1-rds-ca-bundle.pem")
   rds_ca_setup      = <<-SH
     CA_BUNDLE="/tmp/combined-ca-bundle.pem"
     cat /etc/cf-system-certificates/*.crt > "$CA_BUNDLE" 2>/dev/null || true
-    cat >> "$CA_BUNDLE" <<'RDS_CA_BUNDLE'
-${local.rds_ca_bundle_pem}
-RDS_CA_BUNDLE
+    printf '%s\n' "$RDS_CA_BUNDLE_PEM" >> "$CA_BUNDLE"
     export NODE_EXTRA_CA_CERTS="$CA_BUNDLE"
   SH
 }

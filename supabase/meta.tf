@@ -75,6 +75,7 @@ resource "cloudfoundry_app" "supabase-meta" {
     # Certificate validation uses NODE_EXTRA_CA_CERTS from the startup CA bootstrap
     # with the AWS GovCloud RDS CA bundle.
     PG_META_DB_SSL_MODE = "require"
+    RDS_CA_BUNDLE_PEM   = local.rds_ca_bundle_pem
 
     # Idempotent DDL executed before the server starts — creates extensions,
     # roles, schemas, and migration-tracking tables needed by downstream services.

@@ -279,6 +279,14 @@ if [[ "$skip_apply" != "1" ]]; then
   record "Running terraform init..."
   terraform -chdir="$repo_root" init -reconfigure -backend-config="path=$state_file" 2>&1 | tee "$log_dir/terraform-init.log"
 
+  # Older smoke-test runs let Terraform create backing services. The current
+  # smoke test pre-creates them with cf CLI to avoid a provider crash, so remove
+  # any stale managed-service resources from this isolated state before apply.
+  terraform -chdir="$repo_root" state rm 'module.supabase.module.database[0].cloudfoundry_service_instance.rds' >"$log_dir/terraform-state-rm-database.log" 2>&1 || true
+  terraform -chdir="$repo_root" state rm 'module.supabase.module.database.cloudfoundry_service_instance.rds' >>"$log_dir/terraform-state-rm-database.log" 2>&1 || true
+  terraform -chdir="$repo_root" state rm 'module.supabase.module.s3-private[0].cloudfoundry_service_instance.bucket' >"$log_dir/terraform-state-rm-s3.log" 2>&1 || true
+  terraform -chdir="$repo_root" state rm 'module.supabase.module.s3-private.cloudfoundry_service_instance.bucket' >>"$log_dir/terraform-state-rm-s3.log" 2>&1 || true
+
   record "Running terraform apply..."
   terraform -chdir="$repo_root" apply -auto-approve -var-file="$var_file" 2>&1 | tee "$log_dir/terraform-apply.log"
 else

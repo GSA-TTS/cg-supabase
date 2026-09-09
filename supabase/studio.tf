@@ -61,6 +61,7 @@ resource "cloudfoundry_app" "supabase-studio" {
     SUPABASE_ANON_KEY    = local.effective_anon_key
     SUPABASE_SERVICE_KEY = local.effective_service_role_key
     AUTH_JWT_SECRET      = local.effective_jwt_secret
+    RDS_CA_BUNDLE_PEM    = local.rds_ca_bundle_pem
 
     # Direct database connection for Studio's schema browser and SQL editor.
     # Studio builds a PostgreSQL URL from these vars via string interpolation and sends
