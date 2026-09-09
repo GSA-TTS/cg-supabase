@@ -14,7 +14,7 @@ resource "cloudfoundry_route" "supabase-studio" {
 resource "cloudfoundry_service_credential_binding" "studio" {
   type             = "key"
   name             = "studio"
-  service_instance = module.database.instance_id
+  service_instance = local.database_service_instance_id
 }
 
 data "docker_registry_image" "studio" {

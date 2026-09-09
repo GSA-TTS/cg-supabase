@@ -14,7 +14,7 @@ resource "cloudfoundry_route" "supabase-meta" {
 resource "cloudfoundry_service_credential_binding" "meta" {
   type             = "key"
   name             = "meta"
-  service_instance = module.database.instance_id
+  service_instance = local.database_service_instance_id
 }
 
 data "docker_registry_image" "meta" {

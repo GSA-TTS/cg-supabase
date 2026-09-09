@@ -27,6 +27,9 @@ locals {
   # ---------------------------------------------------------------------------
   db_schema_init_sql = file("${path.module}/../scripts/db_schema_init.sql")
 
+  database_service_instance_id = var.database_service_instance_name == "" ? module.database[0].instance_id : data.cloudfoundry_service_instance.database[0].id
+  s3_service_instance_id       = var.s3_service_instance_name == "" ? module.s3-private[0].bucket_id : data.cloudfoundry_service_instance.s3[0].id
+
   # ---------------------------------------------------------------------------
   # RDS CA bootstrap — inline shell snippet sourced by each Node.js service's
   # startup command. Builds a combined CA bundle (CF platform certs + AWS
@@ -84,12 +87,23 @@ resource "jwt_hashed_token" "service_role" {
 # Core infrastructure
 # ---------------------------------------------------------------------------
 
-# The beating heart of all Supabase services is a Postgres database
+# The beating heart of all Supabase services is a Postgres database.
+# Smoke tests can pre-create backing services with the CF CLI to avoid a
+# cloudfoundry provider v1.18.0 crash when managed services omit maintenance_info.
 module "database" {
+  count = var.database_service_instance_name == "" ? 1 : 0
+
   source        = "github.com/GSA-TTS/terraform-cloudgov//database?ref=v2.0.0"
   cf_space_id   = data.cloudfoundry_space.apps.id
   name          = "supabase-db"
   rds_plan_name = var.database_plan
+}
+
+data "cloudfoundry_service_instance" "database" {
+  count = var.database_service_instance_name == "" ? 0 : 1
+
+  name  = var.database_service_instance_name
+  space = data.cloudfoundry_space.apps.id
 }
 
 data "cloudfoundry_org" "apps" {

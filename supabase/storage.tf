@@ -17,11 +17,15 @@ resource "cloudfoundry_route" "supabase-storage" {
 resource "cloudfoundry_service_credential_binding" "storage" {
   type             = "key"
   name             = "storage"
-  service_instance = module.database.instance_id
+  service_instance = local.database_service_instance_id
 }
 
-# Storage needs an S3 bucket to manage
+# Storage needs an S3 bucket to manage.
+# Smoke tests can pre-create backing services with the CF CLI to avoid a
+# cloudfoundry provider v1.18.0 crash when managed services omit maintenance_info.
 module "s3-private" {
+  count = var.s3_service_instance_name == "" ? 1 : 0
+
   source = "github.com/GSA-TTS/terraform-cloudgov//s3?ref=v2.0.0"
 
   cf_space_id  = data.cloudfoundry_space.apps.id
@@ -29,10 +33,17 @@ module "s3-private" {
   s3_plan_name = var.s3_plan_name
 }
 
+data "cloudfoundry_service_instance" "s3" {
+  count = var.s3_service_instance_name == "" ? 0 : 1
+
+  name  = var.s3_service_instance_name
+  space = data.cloudfoundry_space.apps.id
+}
+
 resource "cloudfoundry_service_credential_binding" "s3" {
   type             = "key"
   name             = "storage"
-  service_instance = module.s3-private.bucket_id
+  service_instance = local.s3_service_instance_id
 }
 
 data "docker_registry_image" "storage" {

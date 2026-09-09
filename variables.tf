@@ -20,6 +20,18 @@ variable "s3_plan_name" {
   default     = "basic"
 }
 
+variable "database_service_instance_name" {
+  type        = string
+  description = "Name of an existing cloud.gov RDS service instance to use instead of creating one. Empty creates a new instance."
+  default     = ""
+}
+
+variable "s3_service_instance_name" {
+  type        = string
+  description = "Name of an existing cloud.gov S3 service instance to use instead of creating one. Empty creates a new instance."
+  default     = ""
+}
+
 # ---------------------------------------------------------------------------
 # Cloud Foundry authentication — provide service-account credentials,
 # username/password credentials, or neither to use CF CLI config fallback.

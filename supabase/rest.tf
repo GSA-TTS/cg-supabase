@@ -16,7 +16,7 @@ resource "cloudfoundry_route" "supabase-rest" {
 resource "cloudfoundry_service_credential_binding" "rest" {
   type             = "key"
   name             = "rest"
-  service_instance = module.database.instance_id
+  service_instance = local.database_service_instance_id
 }
 
 data "docker_registry_image" "rest" {

@@ -21,9 +21,12 @@ Configuration:
   CG_KEEP_DEPLOYMENT=1    Keep resources after the test. Default destroys them.
   CG_KEEP_ON_FAILURE=1    Keep resources after a failed test for manual inspection.
   CG_SKIP_APPLY=1         Reuse an existing deployment and only run checks.
-  CG_TIMEOUT_SECONDS=900  App health polling timeout. Default: 900.
-  CG_S3_PLAN=basic-sandbox  S3 service plan. Default: basic-sandbox.
-  CG_TF_LOG=DEBUG         Optional Terraform log level. Logs may contain secrets.
+  CG_TIMEOUT_SECONDS=900       App health polling timeout. Default: 900.
+  CG_DATABASE_PLAN=micro-psql  RDS service plan. Default: micro-psql.
+  CG_DATABASE_SERVICE_NAME=supabase-db  RDS service name. Default: supabase-db.
+  CG_S3_PLAN=basic-sandbox     S3 service plan. Default: basic-sandbox.
+  CG_S3_SERVICE_NAME=supabase-private-s3  S3 service name. Default: supabase-private-s3.
+  CG_TF_LOG=DEBUG              Optional Terraform log level. Logs may contain secrets.
 
 The generated var-file forces one instance per app and 896 MB total app memory
 (256 MB Kong + 128 MB each for auth/meta/rest/storage/studio) to fit the default
@@ -60,6 +63,11 @@ keep_on_failure="${CG_KEEP_ON_FAILURE:-0}"
 skip_apply="${CG_SKIP_APPLY:-0}"
 timeout_seconds="${CG_TIMEOUT_SECONDS:-900}"
 s3_plan="${CG_S3_PLAN:-basic-sandbox}"
+database_plan="${CG_DATABASE_PLAN:-micro-psql}"
+database_service_name="${CG_DATABASE_SERVICE_NAME:-supabase-db}"
+s3_service_name="${CG_S3_SERVICE_NAME:-supabase-private-s3}"
+created_database_service=0
+created_s3_service=0
 
 cf_target_field() {
   local label="$1"
@@ -94,11 +102,55 @@ if [[ -n "${CG_TF_LOG:-}" ]]; then
   export TF_LOG_PATH="$log_dir/terraform-debug.log"
 fi
 
+record() {
+  printf '%s\n' "$*" | tee -a "$report_file"
+}
+
+: > "$report_file"
+
+if ! cf marketplace -e aws-rds 2>/dev/null | tee "$log_dir/cf-marketplace-aws-rds.txt" | awk 'NR > 1 { print $1 }' | grep -Fxq "$database_plan"; then
+  echo "ERROR: RDS service plan '$database_plan' is not visible in $cf_org / $cf_space." >&2
+  echo "Run 'cf marketplace -e aws-rds' to list available plans, then set CG_DATABASE_PLAN=<plan>." >&2
+  exit 1
+fi
+
 if ! cf marketplace -e s3 2>/dev/null | tee "$log_dir/cf-marketplace-s3.txt" | awk 'NR > 1 { print $1 }' | grep -Fxq "$s3_plan"; then
   echo "ERROR: S3 service plan '$s3_plan' is not visible in $cf_org / $cf_space." >&2
   echo "Run 'cf marketplace -e s3' to list available plans, then set CG_S3_PLAN=<plan>." >&2
   exit 1
 fi
+
+cf_service_exists() {
+  cf service "$1" >/dev/null 2>&1
+}
+
+wait_for_service() {
+  local service_name="$1"
+  local deadline=$((SECONDS + timeout_seconds))
+  local service_status
+
+  while true; do
+    service_status="$(cf service "$service_name" 2>&1 || true)"
+    if grep -Eq 'status:[[:space:]]+create succeeded|create succeeded' <<<"$service_status"; then
+      record "PASS service $service_name create succeeded"
+      return 0
+    fi
+
+    if grep -Eq 'status:[[:space:]]+create failed|create failed' <<<"$service_status"; then
+      record "FAIL service $service_name create failed"
+      printf '%s\n' "$service_status" | tee -a "$report_file"
+      return 1
+    fi
+
+    if (( SECONDS >= deadline )); then
+      record "FAIL service $service_name did not finish creating within ${timeout_seconds}s"
+      printf '%s\n' "$service_status" | tee -a "$report_file"
+      return 1
+    fi
+
+    sleep 10
+  done
+}
 
 apps=(
   supabase-api
@@ -108,30 +160,6 @@ apps=(
   supabase-storage
   supabase-studio
 )
-
-cat > "$var_file" <<VARS
-cf_org_name   = "$cf_org"
-cf_space_name = "$cf_space"
-database_plan = "micro-psql"
-s3_plan_name  = "$s3_plan"
-
-api_instances     = 1
-api_memory        = "256M"
-auth_instances    = 1
-auth_memory       = "128M"
-meta_instances    = 1
-meta_memory       = "128M"
-rest_instances    = 1
-rest_memory       = "128M"
-storage_instances = 1
-storage_memory    = "128M"
-studio_instances  = 1
-studio_memory     = "128M"
-VARS
-
-record() {
-  printf '%s\n' "$*" | tee -a "$report_file"
-}
 
 capture_cmd() {
   local name="$1"
@@ -147,6 +175,8 @@ collect_diagnostics() {
   capture_cmd "cf-target" cf target
   capture_cmd "cf-apps" cf apps
   capture_cmd "cf-services" cf services
+  capture_cmd "cf-service-$database_service_name" cf service "$database_service_name"
+  capture_cmd "cf-service-$s3_service_name" cf service "$s3_service_name"
   capture_cmd "cf-routes" cf routes
   capture_cmd "terraform-state-list" terraform -chdir="$repo_root" state list
 
@@ -174,6 +204,12 @@ cleanup() {
   if [[ "$skip_apply" != "1" && "$keep_deployment" != "1" && "$keep_after_failure" != "1" ]]; then
     echo "Destroying smoke-test deployment..."
     terraform -chdir="$repo_root" destroy -auto-approve -var-file="$var_file" 2>&1 | tee "$log_dir/terraform-destroy.log" || true
+    if [[ "$created_s3_service" == "1" ]]; then
+      cf delete-service "$s3_service_name" -f 2>&1 | tee "$log_dir/cf-delete-service-$s3_service_name.log" || true
+    fi
+    if [[ "$created_database_service" == "1" ]]; then
+      cf delete-service "$database_service_name" -f 2>&1 | tee "$log_dir/cf-delete-service-$database_service_name.log" || true
+    fi
   elif [[ "$keep_deployment" == "1" || "$keep_after_failure" == "1" ]]; then
     echo "Keeping smoke-test deployment for manual inspection."
     echo "Temporary var-file: $var_file"
@@ -183,11 +219,59 @@ cleanup() {
 }
 trap cleanup EXIT
 
-: > "$report_file"
+if cf_service_exists "$database_service_name"; then
+  record "Reusing existing RDS service $database_service_name."
+elif [[ "$skip_apply" != "1" ]]; then
+  record "Creating RDS service $database_service_name with plan $database_plan using cf CLI..."
+  cf create-service aws-rds "$database_plan" "$database_service_name" 2>&1 | tee "$log_dir/cf-create-service-$database_service_name.log"
+  created_database_service=1
+else
+  record "Skipping RDS service creation because CG_SKIP_APPLY=1."
+fi
+if cf_service_exists "$database_service_name"; then
+  wait_for_service "$database_service_name"
+fi
+
+if cf_service_exists "$s3_service_name"; then
+  record "Reusing existing S3 service $s3_service_name."
+elif [[ "$skip_apply" != "1" ]]; then
+  record "Creating S3 service $s3_service_name with plan $s3_plan using cf CLI..."
+  cf create-service s3 "$s3_plan" "$s3_service_name" 2>&1 | tee "$log_dir/cf-create-service-$s3_service_name.log"
+  created_s3_service=1
+else
+  record "Skipping S3 service creation because CG_SKIP_APPLY=1."
+fi
+if cf_service_exists "$s3_service_name"; then
+  wait_for_service "$s3_service_name"
+fi
+
+cat > "$var_file" <<VARS
+cf_org_name   = "$cf_org"
+cf_space_name = "$cf_space"
+database_plan = "$database_plan"
+s3_plan_name  = "$s3_plan"
+database_service_instance_name = "$database_service_name"
+s3_service_instance_name       = "$s3_service_name"
+
+api_instances     = 1
+api_memory        = "256M"
+auth_instances    = 1
+auth_memory       = "128M"
+meta_instances    = 1
+meta_memory       = "128M"
+rest_instances    = 1
+rest_memory       = "128M"
+storage_instances = 1
+storage_memory    = "128M"
+studio_instances  = 1
+studio_memory     = "128M"
+VARS
+
 record "cloud.gov Supabase smoke test"
 record "Org: $cf_org"
 record "Space: $cf_space"
-record "S3 plan: $s3_plan"
+record "RDS service: $database_service_name ($database_plan)"
+record "S3 service: $s3_service_name ($s3_plan)"
 record "Sandbox-safe app memory: 896 MB total"
 record ""
 

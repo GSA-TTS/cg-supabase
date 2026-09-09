@@ -12,6 +12,9 @@ module "supabase" {
   database_plan = var.database_plan
   s3_plan_name  = var.s3_plan_name
 
+  database_service_instance_name = var.database_service_instance_name
+  s3_service_instance_name       = var.s3_service_instance_name
+
   api_instances     = var.api_instances
   api_memory        = var.api_memory
   auth_instances    = var.auth_instances
