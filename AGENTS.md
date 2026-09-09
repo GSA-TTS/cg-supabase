@@ -54,6 +54,10 @@ JWT secrets (`jwt_secret`, `anon_key`, `service_role_key`) are **optional** — 
 
 `terraform apply` deploys pg-meta with `scripts/db_schema_init.sql` loaded into its environment. On startup, pg-meta runs that idempotent SQL from inside the cloud.gov app network before starting the API server. This creates the roles, schemas, and migration-tracking tables that GoTrue and Storage expect.
 
+### Smoke test
+
+Use `scripts/cloudgov_smoke_test.sh` to run a live cloud.gov deployment check. It targets the current `cf target` or `CG_ORG`/`CG_SPACE`, uses sandbox-safe sizing, creates/reuses backing RDS and S3 services with the `cf` CLI, and reports PASS/FAIL for app startup plus Kong-routed endpoints. It destroys by default; use `CG_KEEP_ON_FAILURE=1` when diagnosing.
+
 ## Architecture
 
 ### Two Environments, Same Components
@@ -64,6 +68,8 @@ JWT secrets (`jwt_secret`, `anon_key`, `service_role_key`) are **optional** — 
 | Storage | Local filesystem | S3 bucket |
 | Networking | HTTP, localhost | HTTPS, Cloud Foundry routes |
 | Images | Tagged `scanned` from ghcr.io | Same scanned images |
+
+Production inter-service traffic uses `apps.internal:61443` for Cloud Foundry platform-managed c2c TLS. Every backend app is configured to listen on app port `8080` so Cloud Foundry's stable `61443 -> app:8080` proxy mapping works.
 
 ### Service Map
 

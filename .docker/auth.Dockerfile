@@ -1,4 +1,4 @@
-FROM supabase/gotrue:v2.151.0 AS original
+FROM supabase/gotrue:v2.196.0 AS original
 FROM scratch
 COPY --from=original / /
 

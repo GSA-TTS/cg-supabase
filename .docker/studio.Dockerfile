@@ -1,4 +1,4 @@
-FROM ghcr.io/supabase/studio:v1.24.05 AS original
+FROM supabase/studio:2026.09.07-sha-7996410 AS original
 FROM scratch
 COPY --from=original / /
 ENTRYPOINT ["docker-entrypoint.sh"]
