@@ -336,7 +336,8 @@ check_http() {
 record ""
 record "Checking public endpoints at $api_url..."
 check_http "Kong gateway" "$api_url/" '^(200|301|302|401|404)$'
-check_http "Studio through Kong basic-auth" "$api_url/" '^200$' --user "$dashboard_username:$dashboard_password"
+# Studio may redirect unauthenticated browser flows after Kong basic-auth succeeds.
+check_http "Studio through Kong basic-auth" "$api_url/" '^(200|301|302|303|307|308)$' --user "$dashboard_username:$dashboard_password"
 check_http "Auth health through Kong" "$api_url/auth/v1/health" '^(200|401|404)$' --header 'apikey: smoke-test'
 check_http "REST route through Kong" "$api_url/rest/v1/" '^(200|401|404)$' --header 'apikey: smoke-test'
 
