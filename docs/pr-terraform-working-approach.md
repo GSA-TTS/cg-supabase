@@ -21,7 +21,7 @@ The `cloudfoundry_app.supabase-auth` resource was previously commented out. It
 is now configured and deployed using the GSA-TTS scanned GoTrue image:
 
 - Image: `ghcr.io/gsa-tts/cg-supabase/auth:scanned`
-- Private CF route: `supabase-auth<slug>.apps.internal:8080`
+- Private CF route: `supabase-auth<slug>.apps.internal:61443` for callers, routed to app port `8080`
 - `GOTRUE_DB_DATABASE_URL` uses a dedicated database service key with
   `search_path=auth&sslmode=prefer`
 - `GOTRUE_SITE_URL` and `API_EXTERNAL_URL` point to the Kong public gateway URL
@@ -194,19 +194,16 @@ Internet
     |
     v
 Kong (supabase-supabase.app.cloud.gov)    <- public route
-    |  CF network policies to app listen ports by default
-    |---> supabase-auth.apps.internal:8080     <- GoTrue (auth)
-    |---> supabase-rest.apps.internal:3000     <- PostgREST (REST API)
-    |---> supabase-storage.apps.internal:5000  <- Storage API
-    |---> supabase-meta.apps.internal:8080     <- pg-meta (schema browser)
-    `---> supabase-studio.apps.internal:3000   <- Studio UI
+    |  CF network policies to 61443 for platform-managed app-to-app encryption
+    |---> supabase-auth.apps.internal:61443     -> app:8080  <- GoTrue (auth)
+    |---> supabase-rest.apps.internal:61443     -> app:8080  <- PostgREST (REST API)
+    |---> supabase-storage.apps.internal:61443  -> app:8080  <- Storage API
+    |---> supabase-meta.apps.internal:61443     -> app:8080  <- pg-meta (schema browser)
+    `---> supabase-studio.apps.internal:61443   -> app:8080  <- Studio UI
 
 Studio (SSR)
-    |---> supabase-rest.apps.internal:3000     <- direct for server-side rendering
-    `---> supabase-meta.apps.internal:8080     <- direct for schema browser
-
-Set `internal_routing_mode = "platform_tls"` to use `apps.internal:61443`
-where cloud.gov platform-managed service-to-service encryption is available.
+    |---> supabase-rest.apps.internal:61443     -> app:8080  <- direct for server-side rendering
+    `---> supabase-meta.apps.internal:61443     -> app:8080  <- direct for schema browser
 
 All apps
     `---> supabase-db (aws-rds)             <- RDS Postgres, per-app service keys

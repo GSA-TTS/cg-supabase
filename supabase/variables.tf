@@ -33,17 +33,6 @@ variable "s3_service_instance_name" {
   default     = ""
 }
 
-variable "internal_routing_mode" {
-  type        = string
-  description = "Internal app-to-app routing mode. Use native for direct app ports, or platform_tls for cloud.gov apps.internal:61443 when platform-managed service-to-service encryption is available."
-  default     = "native"
-
-  validation {
-    condition     = contains(["native", "platform_tls"], var.internal_routing_mode)
-    error_message = "internal_routing_mode must be either native or platform_tls."
-  }
-}
-
 variable "api_instances" {
   type        = number
   description = "the number of instances of the api application to run (default: 2)"

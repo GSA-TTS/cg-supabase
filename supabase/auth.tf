@@ -2,7 +2,7 @@ locals {
   auth_image          = "ghcr.io/gsa-tts/cg-supabase/auth"
   auth_image_tag      = "scanned"
   auth_app_name       = "supabase-auth"
-  auth_url            = "${local.internal_scheme}://supabase-auth${local.slug}.apps.internal:${local.auth_internal_port}"
+  auth_url            = "https://supabase-auth${local.slug}.apps.internal:61443"
   auth_db_credentials = jsondecode(cloudfoundry_service_credential_binding.auth.credential_binding).credentials
   # GoTrue is a Go service — sslmode=prefer encrypts without requiring cert validation
   auth_connection_string = "${local.auth_db_credentials.uri}?search_path=auth&sslmode=prefer"

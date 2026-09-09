@@ -65,7 +65,7 @@ The deployment consists of several containerized services deployed to Cloud Foun
 - Uses `apps.internal` domain for inter-service communication
 - `app.cloud.gov` for public access
 - Network policies control service-to-service communication
-- Services default to native app listen ports over `apps.internal`; `internal_routing_mode = "platform_tls"` uses `apps.internal:61443` where platform-managed encryption is available
+- Services call `apps.internal:61443` for platform-managed encryption; every backend service listens on app port 8080 so Cloud Foundry's c2c TLS proxy can route traffic correctly
 
 ### Database
 - Uses cloud.gov RDS PostgreSQL

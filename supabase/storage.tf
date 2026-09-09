@@ -1,7 +1,7 @@
 locals {
   storage_image          = "ghcr.io/gsa-tts/cg-supabase/storage"
   storage_image_tag      = "scanned"
-  storage_url            = "${local.internal_scheme}://supabase-storage${local.slug}.apps.internal:${local.storage_internal_port}"
+  storage_url            = "https://supabase-storage${local.slug}.apps.internal:61443"
   storage_db_credentials = jsondecode(cloudfoundry_service_credential_binding.storage.credential_binding).credentials
   s3_credentials         = jsondecode(cloudfoundry_service_credential_binding.s3.credential_binding).credentials
   # storage is a Node.js service; RDS CA validation is configured via NODE_EXTRA_CA_CERTS.
@@ -15,7 +15,7 @@ resource "cloudfoundry_route" "supabase-storage" {
   destinations = [
     {
       app_id = cloudfoundry_app.supabase-storage.id
-      port   = 5000
+      port   = 8080
     }
   ]
 }
@@ -79,6 +79,10 @@ resource "cloudfoundry_app" "supabase-storage" {
   environment = {
     # https://github.com/supabase/storage
 
+    # Server
+    PORT        = "8080"
+    SERVER_PORT = "8080"
+
     # Auth
     ANON_KEY    = local.effective_anon_key
     SERVICE_KEY = local.effective_service_role_key
@@ -137,7 +141,7 @@ resource "cloudfoundry_network_policy" "storage-rest" {
     {
       source_app      = cloudfoundry_app.supabase-storage.id
       destination_app = cloudfoundry_app.supabase-rest.id
-      port            = tostring(local.rest_internal_port)
+      port            = "61443"
     }
   ]
 }

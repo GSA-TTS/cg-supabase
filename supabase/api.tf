@@ -160,7 +160,7 @@ locals {
       ## Requires a cloud.gov egress proxy for outbound HTTP requests from user code.
       ## Uncomment and set url to the CF internal route if deploying an edge functions app.
       # - name: functions-v1
-      #   url: http://<functions-hostname>.apps.internal:<app-port>/
+      #   url: https://<functions-hostname>.apps.internal:61443/
       #   routes:
       #     - name: functions-v1-all
       #       strip_path: true
@@ -172,7 +172,7 @@ locals {
       ## Analytics routes — not deployed in this Terraform module.
       ## Uncomment and set url to the CF internal route if deploying an analytics app.
       # - name: analytics-v1
-      #   url: http://<analytics-hostname>.apps.internal:<app-port>/
+      #   url: https://<analytics-hostname>.apps.internal:61443/
       #   routes:
       #     - name: analytics-v1-all
       #       strip_path: true
@@ -246,27 +246,27 @@ resource "cloudfoundry_network_policy" "api-backends" {
     {
       source_app      = local.api_app_id
       destination_app = cloudfoundry_app.supabase-auth.id
-      port            = tostring(local.auth_internal_port)
+      port            = "61443"
     },
     {
       source_app      = local.api_app_id
       destination_app = cloudfoundry_app.supabase-meta.id
-      port            = tostring(local.meta_internal_port)
+      port            = "61443"
     },
     {
       source_app      = local.api_app_id
       destination_app = cloudfoundry_app.supabase-rest.id
-      port            = tostring(local.rest_internal_port)
+      port            = "61443"
     },
     {
       source_app      = local.api_app_id
       destination_app = cloudfoundry_app.supabase-storage.id
-      port            = tostring(local.storage_internal_port)
+      port            = "61443"
     },
     {
       source_app      = local.api_app_id
       destination_app = cloudfoundry_app.supabase-studio.id
-      port            = tostring(local.studio_internal_port)
+      port            = "61443"
     }
   ]
 }

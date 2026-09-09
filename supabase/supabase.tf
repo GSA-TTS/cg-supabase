@@ -30,13 +30,6 @@ locals {
   database_service_instance_id = var.database_service_instance_name == "" ? module.database[0].instance_id : data.cloudfoundry_service_instance.database[0].id
   s3_service_instance_id       = var.s3_service_instance_name == "" ? module.s3-private[0].bucket_id : data.cloudfoundry_service_instance.s3[0].id
 
-  internal_scheme       = var.internal_routing_mode == "platform_tls" ? "https" : "http"
-  auth_internal_port    = var.internal_routing_mode == "platform_tls" ? 61443 : 8080
-  meta_internal_port    = var.internal_routing_mode == "platform_tls" ? 61443 : 8080
-  rest_internal_port    = var.internal_routing_mode == "platform_tls" ? 61443 : 3000
-  storage_internal_port = var.internal_routing_mode == "platform_tls" ? 61443 : 5000
-  studio_internal_port  = var.internal_routing_mode == "platform_tls" ? 61443 : 3000
-
   # ---------------------------------------------------------------------------
   # RDS CA bootstrap — inline shell snippet sourced by each Node.js service's
   # startup command. Builds a combined CA bundle (CF platform certs + AWS

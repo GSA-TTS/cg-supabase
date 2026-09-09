@@ -300,7 +300,6 @@ cf_org_name   = "$cf_org"
 cf_space_name = "$cf_space"
 database_plan = "$database_plan"
 s3_plan_name  = "$s3_plan"
-internal_routing_mode = "native"
 database_service_instance_name = "$database_service_name"
 s3_service_instance_name       = "$s3_service_name"
 

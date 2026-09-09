@@ -1,7 +1,7 @@
 locals {
   meta_image          = "ghcr.io/gsa-tts/cg-supabase/meta"
   meta_image_tag      = "scanned"
-  meta_url            = "${local.internal_scheme}://supabase-meta${local.slug}.apps.internal:${local.meta_internal_port}"
+  meta_url            = "https://supabase-meta${local.slug}.apps.internal:61443"
   meta_db_credentials = jsondecode(cloudfoundry_service_credential_binding.meta.credential_binding).credentials
 }
 
