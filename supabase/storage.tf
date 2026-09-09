@@ -97,7 +97,8 @@ resource "cloudfoundry_app" "supabase-storage" {
     DB_SUPER_USER            = local.storage_db_credentials.username
     AUTH_JWT_SECRET          = local.effective_jwt_secret
     AUTH_JWT_ALGORITHM       = "HS256"
-    DB_INSTALL_ROLES         = "true"
+    # Shared roles are created idempotently by scripts/db_schema_init.sql.
+    DB_INSTALL_ROLES = "false"
 
     # S3 backend (cloud.gov s3 broker — FIPS endpoint for GovCloud compliance)
     STORAGE_BACKEND             = "s3"
