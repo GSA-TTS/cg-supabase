@@ -194,16 +194,19 @@ Internet
     |
     v
 Kong (supabase-supabase.app.cloud.gov)    <- public route
-    |  CF network policies to 61443 for platform-managed app-to-app encryption
-    |---> supabase-auth.apps.internal:61443     -> app:8080  <- GoTrue (auth)
-    |---> supabase-rest.apps.internal:61443     -> app:3000  <- PostgREST (REST API)
-    |---> supabase-storage.apps.internal:61443  -> app:5000  <- Storage API
-    |---> supabase-meta.apps.internal:61443     -> app:8080  <- pg-meta (schema browser)
-    `---> supabase-studio.apps.internal:61443   -> app:3000  <- Studio UI
+    |  CF network policies to app listen ports by default
+    |---> supabase-auth.apps.internal:8080     <- GoTrue (auth)
+    |---> supabase-rest.apps.internal:3000     <- PostgREST (REST API)
+    |---> supabase-storage.apps.internal:5000  <- Storage API
+    |---> supabase-meta.apps.internal:8080     <- pg-meta (schema browser)
+    `---> supabase-studio.apps.internal:3000   <- Studio UI
 
 Studio (SSR)
-    |---> supabase-rest.apps.internal:61443     -> app:3000  <- direct for server-side rendering
-    `---> supabase-meta.apps.internal:61443     -> app:8080  <- direct for schema browser
+    |---> supabase-rest.apps.internal:3000     <- direct for server-side rendering
+    `---> supabase-meta.apps.internal:8080     <- direct for schema browser
+
+Set `internal_routing_mode = "platform_tls"` to use `apps.internal:61443`
+where cloud.gov platform-managed service-to-service encryption is available.
 
 All apps
     `---> supabase-db (aws-rds)             <- RDS Postgres, per-app service keys

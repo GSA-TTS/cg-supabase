@@ -43,10 +43,12 @@ terraform output -raw dashboard_password
 ## Deployment architecture
 
 All services run in a single Cloud Foundry space on cloud.gov.  Kong is the
-only publicly-routed app; callers use private CF internal routes
-(`apps.internal`) on port 61443 to trigger cloud.gov platform-managed
-service-to-service encryption. Route destinations still map to each app's
-native HTTP listen port.
+only publicly-routed app; backend services communicate over private CF internal
+routes (`apps.internal`). By default, callers use each app's native HTTP listen
+port because that path is live-verified in cloud.gov sandboxes. Set
+`internal_routing_mode = "platform_tls"` to use `apps.internal:61443` where
+cloud.gov platform-managed service-to-service encryption is available. Route
+destinations always map to each app's native HTTP listen port.
 
 ```mermaid
     C4Context
@@ -72,18 +74,18 @@ native HTTP listen port.
 
       Rel(client_app, kong, "API requests", "HTTPS")
       Rel(admin_user, kong, "Dashboard (basic-auth)", "HTTPS")
-      Rel(kong, auth, "/auth/v1/*", "apps.internal:61443 -> app:8080")
-      Rel(kong, rest, "/rest/v1/*", "apps.internal:61443 -> app:3000")
-      Rel(kong, storage, "/storage/v1/*", "apps.internal:61443 -> app:5000")
-      Rel(kong, meta, "/pg/*", "apps.internal:61443 -> app:8080")
-      Rel(kong, studio, "/* (dashboard)", "apps.internal:61443 -> app:3000")
+      Rel(kong, auth, "/auth/v1/*", "apps.internal:8080 (or 61443 -> app:8080)")
+      Rel(kong, rest, "/rest/v1/*", "apps.internal:3000 (or 61443 -> app:3000)")
+      Rel(kong, storage, "/storage/v1/*", "apps.internal:5000 (or 61443 -> app:5000)")
+      Rel(kong, meta, "/pg/*", "apps.internal:8080 (or 61443 -> app:8080)")
+      Rel(kong, studio, "/* (dashboard)", "apps.internal:3000 (or 61443 -> app:3000)")
       Rel(rest, postgres_db, "Queries")
       Rel(auth, postgres_db, "Auth schema")
       Rel(storage, postgres_db, "File metadata")
       Rel(storage, s3_bucket, "File objects")
       Rel(meta, postgres_db, "Schema introspection")
-      Rel(studio, rest, "SSR API calls", "apps.internal:61443 -> app:3000")
-      Rel(studio, meta, "Table editor", "apps.internal:61443 -> app:8080")
+      Rel(studio, rest, "SSR API calls", "apps.internal:3000 (or 61443 -> app:3000)")
+      Rel(studio, meta, "Table editor", "apps.internal:8080 (or 61443 -> app:8080)")
 ```
 
 **Not deployed by this module** (require platform features unavailable on cloud.gov):
@@ -107,7 +109,7 @@ A user with access to a cloud.gov org/space can run one command to deploy this m
 CG_ORG=<org> CG_SPACE=<space> ./scripts/cloudgov_smoke_test.sh
 ```
 
-The smoke test sets one instance per app, 896 MB total app memory (256 MB Kong plus 128 MB each for auth, meta, rest, storage, and studio), RDS `micro-psql`, and S3 `basic-sandbox` so it fits the default 1 GB cloud.gov sandbox quota. It creates/reuses those backing services with the `cf` CLI before running Terraform, avoiding a `cloudfoundry` provider v1.18.0 managed-service creation crash seen when cloud.gov omits `maintenance_info` from a service response. It also removes stale Terraform-managed backing-service resources from the isolated smoke-test state before apply. It uses isolated Terraform metadata under `.cloudgov-smoke.terraform` and local state at `.cloudgov-smoke.tfstate`, then destroys the deployment by default. If `CG_ORG` and `CG_SPACE` are omitted, the script uses the current `cf target`. If Terraform credentials are not set, the script passes the current `cf oauth-token` to the provider as `CF_ACCESS_TOKEN`. On failure, diagnostics are written under `.cloudgov-smoke-logs/`; set `CG_KEEP_ON_FAILURE=1` or `CG_KEEP_DEPLOYMENT=1` to leave resources running for manual inspection.
+The smoke test sets one instance per app, 896 MB total app memory (256 MB Kong plus 128 MB each for auth, meta, rest, storage, and studio), RDS `micro-psql`, S3 `basic-sandbox`, and `internal_routing_mode = "native"` so it fits and works in the default 1 GB cloud.gov sandbox quota. It creates/reuses those backing services with the `cf` CLI before running Terraform, avoiding a `cloudfoundry` provider v1.18.0 managed-service creation crash seen when cloud.gov omits `maintenance_info` from a service response. It also removes stale Terraform-managed backing-service resources from the isolated smoke-test state before apply. It uses isolated Terraform metadata under `.cloudgov-smoke.terraform` and local state at `.cloudgov-smoke.tfstate`, then destroys the deployment by default. If `CG_ORG` and `CG_SPACE` are omitted, the script uses the current `cf target`. If Terraform credentials are not set, the script passes the current `cf oauth-token` to the provider as `CF_ACCESS_TOKEN`. On failure, diagnostics are written under `.cloudgov-smoke-logs/`; set `CG_KEEP_ON_FAILURE=1` or `CG_KEEP_DEPLOYMENT=1` to leave resources running for manual inspection.
 
 ## Docker Compose Development Environment
 

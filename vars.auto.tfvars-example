@@ -4,8 +4,9 @@
 cf_org_name   = "your-cloudgov-org"
 cf_space_name = "your-cloudgov-space"
 
-database_plan = "micro-psql"
-s3_plan_name  = "basic"
+database_plan          = "micro-psql"
+s3_plan_name           = "basic"
+internal_routing_mode  = "native"
 
 # Use existing backing services instead of creating them with Terraform.
 # database_service_instance_name = "supabase-db"

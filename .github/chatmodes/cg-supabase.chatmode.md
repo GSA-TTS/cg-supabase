@@ -65,7 +65,7 @@ The deployment consists of several containerized services deployed to Cloud Foun
 - Uses `apps.internal` domain for inter-service communication
 - `app.cloud.gov` for public access
 - Network policies control service-to-service communication
-- Services call `apps.internal:61443` for platform-managed encryption; route destinations map to app listen ports: Auth/Meta 8080, REST/Studio 3000, Storage 5000
+- Services default to native app listen ports over `apps.internal`; `internal_routing_mode = "platform_tls"` uses `apps.internal:61443` where platform-managed encryption is available
 
 ### Database
 - Uses cloud.gov RDS PostgreSQL

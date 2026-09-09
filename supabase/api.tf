@@ -246,27 +246,27 @@ resource "cloudfoundry_network_policy" "api-backends" {
     {
       source_app      = local.api_app_id
       destination_app = cloudfoundry_app.supabase-auth.id
-      port            = "61443"
+      port            = tostring(local.auth_internal_port)
     },
     {
       source_app      = local.api_app_id
       destination_app = cloudfoundry_app.supabase-meta.id
-      port            = "61443"
+      port            = tostring(local.meta_internal_port)
     },
     {
       source_app      = local.api_app_id
       destination_app = cloudfoundry_app.supabase-rest.id
-      port            = "61443"
+      port            = tostring(local.rest_internal_port)
     },
     {
       source_app      = local.api_app_id
       destination_app = cloudfoundry_app.supabase-storage.id
-      port            = "61443"
+      port            = tostring(local.storage_internal_port)
     },
     {
       source_app      = local.api_app_id
       destination_app = cloudfoundry_app.supabase-studio.id
-      port            = "61443"
+      port            = tostring(local.studio_internal_port)
     }
   ]
 }
