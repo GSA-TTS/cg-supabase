@@ -1,7 +1,7 @@
 locals {
   studio_image          = "ghcr.io/gsa-tts/cg-supabase/studio"
   studio_image_tag      = "scanned"
-  studio_url            = "http://supabase-studio${local.slug}.apps.internal"
+  studio_url            = "http://supabase-studio${local.slug}.apps.internal:3000"
   studio_db_credentials = jsondecode(cloudfoundry_service_credential_binding.studio.credential_binding).credentials
 }
 

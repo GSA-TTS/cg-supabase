@@ -160,7 +160,7 @@ locals {
       ## Requires a cloud.gov egress proxy for outbound HTTP requests from user code.
       ## Uncomment and set url to the CF internal route if deploying an edge functions app.
       # - name: functions-v1
-      #   url: http://<functions-hostname>.apps.internal/
+      #   url: http://<functions-hostname>.apps.internal:<app-port>/
       #   routes:
       #     - name: functions-v1-all
       #       strip_path: true
@@ -172,7 +172,7 @@ locals {
       ## Analytics routes — not deployed in this Terraform module.
       ## Uncomment and set url to the CF internal route if deploying an analytics app.
       # - name: analytics-v1
-      #   url: http://<analytics-hostname>.apps.internal/
+      #   url: http://<analytics-hostname>.apps.internal:<app-port>/
       #   routes:
       #     - name: analytics-v1-all
       #       strip_path: true

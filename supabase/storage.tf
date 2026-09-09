@@ -1,7 +1,7 @@
 locals {
   storage_image          = "ghcr.io/gsa-tts/cg-supabase/storage"
   storage_image_tag      = "scanned"
-  storage_url            = "http://supabase-storage${local.slug}.apps.internal"
+  storage_url            = "http://supabase-storage${local.slug}.apps.internal:5000"
   storage_db_credentials = jsondecode(cloudfoundry_service_credential_binding.storage.credential_binding).credentials
   s3_credentials         = jsondecode(cloudfoundry_service_credential_binding.s3.credential_binding).credentials
   # storage is a Node.js service; RDS CA validation is configured via NODE_EXTRA_CA_CERTS.
