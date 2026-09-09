@@ -2,7 +2,7 @@ locals {
   auth_image          = "ghcr.io/gsa-tts/cg-supabase/auth"
   auth_image_tag      = "scanned"
   auth_app_name       = "supabase-auth"
-  auth_url            = "https://${cloudfoundry_route.supabase-auth.url}:61443"
+  auth_url            = "http://supabase-auth${local.slug}.apps.internal"
   auth_db_credentials = jsondecode(cloudfoundry_service_credential_binding.auth.credential_binding).credentials
   # GoTrue is a Go service — sslmode=prefer encrypts without requiring cert validation
   auth_connection_string = "${local.auth_db_credentials.uri}?search_path=auth&sslmode=prefer"
@@ -12,6 +12,12 @@ resource "cloudfoundry_route" "supabase-auth" {
   space  = data.cloudfoundry_space.apps.id
   domain = data.cloudfoundry_domain.private.id
   host   = "supabase-auth${local.slug}"
+  destinations = [
+    {
+      app_id = cloudfoundry_app.supabase-auth.id
+      port   = 8080
+    }
+  ]
 }
 
 resource "cloudfoundry_service_credential_binding" "auth" {
@@ -38,12 +44,6 @@ resource "cloudfoundry_app" "supabase-auth" {
   health_check_type               = "http"
   health_check_http_endpoint      = "/health"
   health_check_invocation_timeout = 30
-
-  routes = [
-    {
-      route = cloudfoundry_route.supabase-auth.url
-    }
-  ]
 
   environment = {
     GOTRUE_API_HOST = "0.0.0.0"

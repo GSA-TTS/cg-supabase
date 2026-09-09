@@ -1,7 +1,7 @@
 locals {
   meta_image          = "ghcr.io/gsa-tts/cg-supabase/meta"
   meta_image_tag      = "scanned"
-  meta_url            = "https://${cloudfoundry_route.supabase-meta.url}:61443"
+  meta_url            = "http://supabase-meta${local.slug}.apps.internal"
   meta_db_credentials = jsondecode(cloudfoundry_service_credential_binding.meta.credential_binding).credentials
 }
 
@@ -9,6 +9,12 @@ resource "cloudfoundry_route" "supabase-meta" {
   space  = data.cloudfoundry_space.apps.id
   domain = data.cloudfoundry_domain.private.id
   host   = "supabase-meta${local.slug}"
+  destinations = [
+    {
+      app_id = cloudfoundry_app.supabase-meta.id
+      port   = 8080
+    }
+  ]
 }
 
 resource "cloudfoundry_service_credential_binding" "meta" {
@@ -35,12 +41,6 @@ resource "cloudfoundry_app" "supabase-meta" {
   health_check_type               = "http"
   health_check_http_endpoint      = "/"
   health_check_invocation_timeout = 30
-
-  routes = [
-    {
-      route = cloudfoundry_route.supabase-meta.url
-    }
-  ]
 
   command = <<-CMD
     ${local.rds_ca_setup}

@@ -1,7 +1,7 @@
 locals {
   studio_image          = "ghcr.io/gsa-tts/cg-supabase/studio"
   studio_image_tag      = "scanned"
-  studio_url            = "https://${cloudfoundry_route.supabase-studio.url}:61443"
+  studio_url            = "http://supabase-studio${local.slug}.apps.internal"
   studio_db_credentials = jsondecode(cloudfoundry_service_credential_binding.studio.credential_binding).credentials
 }
 
@@ -9,6 +9,12 @@ resource "cloudfoundry_route" "supabase-studio" {
   space  = data.cloudfoundry_space.apps.id
   domain = data.cloudfoundry_domain.private.id
   host   = "supabase-studio${local.slug}"
+  destinations = [
+    {
+      app_id = cloudfoundry_app.supabase-studio.id
+      port   = 3000
+    }
+  ]
 }
 
 resource "cloudfoundry_service_credential_binding" "studio" {
@@ -33,12 +39,6 @@ resource "cloudfoundry_app" "supabase-studio" {
   strategy     = "none"
 
   health_check_type = "port"
-
-  routes = [
-    {
-      route = cloudfoundry_route.supabase-studio.url
-    }
-  ]
 
   command = <<-CMD
     ${local.rds_ca_setup}
@@ -101,7 +101,7 @@ resource "cloudfoundry_network_policy" "studio-rest" {
     {
       source_app      = cloudfoundry_app.supabase-studio.id
       destination_app = cloudfoundry_app.supabase-rest.id
-      port            = "61443"
+      port            = "3000"
     }
   ]
 }
@@ -112,7 +112,7 @@ resource "cloudfoundry_network_policy" "studio-meta" {
     {
       source_app      = cloudfoundry_app.supabase-studio.id
       destination_app = cloudfoundry_app.supabase-meta.id
-      port            = "61443"
+      port            = "8080"
     }
   ]
 }

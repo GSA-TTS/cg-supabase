@@ -1,7 +1,7 @@
 locals {
   rest_image          = "ghcr.io/gsa-tts/cg-supabase/rest"
   rest_image_tag      = "scanned"
-  rest_url            = "https://${cloudfoundry_route.supabase-rest.url}:61443"
+  rest_url            = "http://supabase-rest${local.slug}.apps.internal"
   rest_db_credentials = jsondecode(cloudfoundry_service_credential_binding.rest.credential_binding).credentials
   # PostgREST is a Go service — sslmode=prefer encrypts without requiring cert validation
   rest_connection_string = "${local.rest_db_credentials.uri}?sslmode=prefer"
@@ -11,6 +11,12 @@ resource "cloudfoundry_route" "supabase-rest" {
   space  = data.cloudfoundry_space.apps.id
   domain = data.cloudfoundry_domain.private.id
   host   = "supabase-rest${local.slug}"
+  destinations = [
+    {
+      app_id = cloudfoundry_app.supabase-rest.id
+      port   = 3000
+    }
+  ]
 }
 
 resource "cloudfoundry_service_credential_binding" "rest" {
@@ -35,12 +41,6 @@ resource "cloudfoundry_app" "supabase-rest" {
   strategy     = "none"
 
   health_check_type = "port"
-
-  routes = [
-    {
-      route = cloudfoundry_route.supabase-rest.url
-    }
-  ]
 
   environment = {
     # https://postgrest.org/en/v12/references/configuration.html

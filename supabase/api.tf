@@ -1,5 +1,5 @@
 locals {
-  api_url = "https://${cloudfoundry_route.supabase-api.url}"
+  api_url = "https://supabase${local.slug}.app.cloud.gov"
 
   api_username = "supabase"
   api_password = random_password.dashboard_password.result
@@ -160,7 +160,7 @@ locals {
       ## Requires a cloud.gov egress proxy for outbound HTTP requests from user code.
       ## Uncomment and set url to the CF internal route if deploying an edge functions app.
       # - name: functions-v1
-      #   url: https://<functions-hostname>.apps.internal:61443/
+      #   url: http://<functions-hostname>.apps.internal/
       #   routes:
       #     - name: functions-v1-all
       #       strip_path: true
@@ -172,7 +172,7 @@ locals {
       ## Analytics routes — not deployed in this Terraform module.
       ## Uncomment and set url to the CF internal route if deploying an analytics app.
       # - name: analytics-v1
-      #   url: https://<analytics-hostname>.apps.internal:61443/
+      #   url: http://<analytics-hostname>.apps.internal/
       #   routes:
       #     - name: analytics-v1-all
       #       strip_path: true
@@ -246,27 +246,27 @@ resource "cloudfoundry_network_policy" "api-backends" {
     {
       source_app      = local.api_app_id
       destination_app = cloudfoundry_app.supabase-auth.id
-      port            = "61443"
+      port            = "8080"
     },
     {
       source_app      = local.api_app_id
       destination_app = cloudfoundry_app.supabase-meta.id
-      port            = "61443"
+      port            = "8080"
     },
     {
       source_app      = local.api_app_id
       destination_app = cloudfoundry_app.supabase-rest.id
-      port            = "61443"
+      port            = "3000"
     },
     {
       source_app      = local.api_app_id
       destination_app = cloudfoundry_app.supabase-storage.id
-      port            = "61443"
+      port            = "5000"
     },
     {
       source_app      = local.api_app_id
       destination_app = cloudfoundry_app.supabase-studio.id
-      port            = "61443"
+      port            = "3000"
     }
   ]
 }
