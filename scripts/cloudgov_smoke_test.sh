@@ -29,9 +29,9 @@ Configuration:
   CG_IMAGE_TAG=pr-<branch>     GHCR image tag to deploy. Defaults to current branch tag.
   CG_TF_LOG=DEBUG              Optional Terraform log level. Logs may contain secrets.
 
-The generated var-file forces one instance per app and 1,024 MB total app memory
-(640 MB Studio + 128 MB Kong + 64 MB each for auth/meta/rest/storage) to fit the
-1 GB cloud.gov sandbox quota. Terraform state and provider metadata are isolated
+The smoke test runs in stages to fit the 1 GB cloud.gov sandbox quota: core
+APIs run first with Studio scaled to zero, then Studio runs with the API gateway,
+REST, and pg-meta left up. Terraform state and provider metadata are isolated
 under .cloudgov-smoke.tfstate and .cloudgov-smoke.terraform and are deleted
 after successful cleanup.
 USAGE
@@ -185,6 +185,21 @@ apps=(
   supabase-studio
 )
 
+core_apps=(
+  supabase-api
+  supabase-auth
+  supabase-meta
+  supabase-rest
+  supabase-storage
+)
+
+studio_apps=(
+  supabase-api
+  supabase-meta
+  supabase-rest
+  supabase-studio
+)
+
 capture_cmd() {
   local name="$1"
   shift
@@ -298,7 +313,22 @@ if cf_service_exists "$s3_service_name"; then
   wait_for_service "$s3_service_name"
 fi
 
-cat > "$var_file" <<VARS
+write_var_file() {
+  local stage="$1"
+  local api_instances="$2"
+  local api_memory="$3"
+  local auth_instances="$4"
+  local auth_memory="$5"
+  local meta_instances="$6"
+  local meta_memory="$7"
+  local rest_instances="$8"
+  local rest_memory="$9"
+  local storage_instances="${10}"
+  local storage_memory="${11}"
+  local studio_instances="${12}"
+  local studio_memory="${13}"
+
+  cat > "$var_file" <<VARS
 cf_org_name   = "$cf_org"
 cf_space_name = "$cf_space"
 database_plan = "$database_plan"
@@ -307,19 +337,87 @@ image_tag     = "$image_tag"
 database_service_instance_name = "$database_service_name"
 s3_service_instance_name       = "$s3_service_name"
 
-api_instances     = 1
-api_memory        = "128M"
-auth_instances    = 1
-auth_memory       = "64M"
-meta_instances    = 1
-meta_memory       = "64M"
-rest_instances    = 1
-rest_memory       = "64M"
-storage_instances = 1
-storage_memory    = "64M"
-studio_instances  = 1
-studio_memory     = "640M"
+api_instances     = $api_instances
+api_memory        = "$api_memory"
+auth_instances    = $auth_instances
+auth_memory       = "$auth_memory"
+meta_instances    = $meta_instances
+meta_memory       = "$meta_memory"
+rest_instances    = $rest_instances
+rest_memory       = "$rest_memory"
+storage_instances = $storage_instances
+storage_memory    = "$storage_memory"
+studio_instances  = $studio_instances
+studio_memory     = "$studio_memory"
 VARS
+
+  cp "$var_file" "$log_dir/terraform-$stage.tfvars"
+}
+
+run_apply() {
+  local stage="$1"
+
+  if [[ "$skip_apply" == "1" ]]; then
+    record "Skipping terraform apply for $stage because CG_SKIP_APPLY=1."
+    return 0
+  fi
+
+  record "Running terraform apply for $stage..."
+  terraform -chdir="$repo_root" apply -auto-approve -var-file="$var_file" 2>&1 | tee "$log_dir/terraform-apply-$stage.log"
+}
+
+wait_for_apps() {
+  local stage="$1"
+  shift
+
+  local app app_status recent_logs deadline
+  deadline=$((SECONDS + timeout_seconds))
+  for app in "$@"; do
+    record "Waiting for $app to report STARTED in $stage..."
+    while true; do
+      app_status="$(cf app "$app" 2>&1 || true)"
+      if grep -Eq '^requested state:[[:space:]]+started' <<<"$app_status" && grep -Eq '^instances:[[:space:]]+[1-9][0-9]*/[1-9][0-9]*' <<<"$app_status"; then
+        record "PASS app $app STARTED"
+        break
+      fi
+
+      if grep -Eiq 'crashed|crash' <<<"$app_status"; then
+        recent_logs="$(cf logs "$app" --recent 2>&1 || true)"
+        if grep -Fq 'exec format error' <<<"$recent_logs"; then
+          record "FAIL app $app crashed with exec format error. The deployed image likely does not match cloud.gov's amd64 runtime architecture; rebuild and publish the multi-arch image tag."
+          printf '%s\n' "$app_status" | tee -a "$report_file"
+          printf '%s\n' "$recent_logs" >"$log_dir/cf-logs-recent-$app-exec-format-error.txt"
+          exit 1
+        fi
+        if grep -Fq "scandir './migrations/tenant'" <<<"$recent_logs"; then
+          record "FAIL app $app crashed because storage-api could not find ./migrations/tenant. The app must start from /app so relative migration paths resolve."
+          printf '%s\n' "$app_status" | tee -a "$report_file"
+          printf '%s\n' "$recent_logs" >"$log_dir/cf-logs-recent-$app-missing-storage-migrations.txt"
+          exit 1
+        fi
+        if grep -Fq 'out of memory' <<<"$recent_logs"; then
+          record "FAIL app $app crashed because Cloud Foundry killed it for exceeding its memory limit. Increase that app's Terraform memory setting."
+          printf '%s\n' "$app_status" | tee -a "$report_file"
+          printf '%s\n' "$recent_logs" >"$log_dir/cf-logs-recent-$app-oom.txt"
+          exit 1
+        fi
+      fi
+
+      if (( SECONDS >= deadline )); then
+        recent_logs="$(cf logs "$app" --recent 2>&1 || true)"
+        record "FAIL app $app did not start within ${timeout_seconds}s"
+        if grep -Eq 'Listening on port 8080' <<<"$recent_logs" && grep -Eq 'failed to make TCP connection to .*:3000' <<<"$recent_logs"; then
+          record "FAIL app $app is listening on 8080, but Cloud Foundry is health-checking port 3000. Rebuild and publish the scanned image so its Docker metadata exposes port 8080."
+        fi
+        printf '%s\n' "$app_status" | tee -a "$report_file"
+        printf '%s\n' "$recent_logs" >"$log_dir/cf-logs-recent-$app-timeout.txt"
+        exit 1
+      fi
+
+      sleep 10
+    done
+  done
+}
 
 record "cloud.gov Supabase smoke test"
 record "Org: $cf_org"
@@ -327,7 +425,7 @@ record "Space: $cf_space"
 record "RDS service: $database_service_name ($database_plan)"
 record "S3 service: $s3_service_name ($s3_plan)"
 record "Image tag: $image_tag"
-record "Sandbox app memory: 1,024 MB total"
+record "Sandbox app memory cap: 1,024 MB total"
 record ""
 
 if [[ "$skip_apply" != "1" ]]; then
@@ -347,59 +445,17 @@ if [[ "$skip_apply" != "1" ]]; then
       terraform -chdir="$repo_root" state rm "$state_address" >>"$log_dir/terraform-state-rm-managed-services.log" 2>&1
     fi
   done
-
-  record "Running terraform apply..."
-  terraform -chdir="$repo_root" apply -auto-approve -var-file="$var_file" 2>&1 | tee "$log_dir/terraform-apply.log"
-else
-  record "Skipping terraform apply because CG_SKIP_APPLY=1."
 fi
 
-deadline=$((SECONDS + timeout_seconds))
-for app in "${apps[@]}"; do
-  record "Waiting for $app to report STARTED..."
-  while true; do
-    app_status="$(cf app "$app" 2>&1 || true)"
-    if grep -Eq '^requested state:[[:space:]]+started' <<<"$app_status" && grep -Eq '^instances:[[:space:]]+[1-9][0-9]*/[1-9][0-9]*' <<<"$app_status"; then
-      record "PASS app $app STARTED"
-      break
-    fi
-
-    if grep -Eiq 'crashed|crash' <<<"$app_status"; then
-      recent_logs="$(cf logs "$app" --recent 2>&1 || true)"
-      if grep -Fq 'exec format error' <<<"$recent_logs"; then
-        record "FAIL app $app crashed with exec format error. The deployed image likely does not match cloud.gov's amd64 runtime architecture; rebuild and publish the multi-arch image tag."
-        printf '%s\n' "$app_status" | tee -a "$report_file"
-        printf '%s\n' "$recent_logs" >"$log_dir/cf-logs-recent-$app-exec-format-error.txt"
-        exit 1
-      fi
-      if grep -Fq "scandir './migrations/tenant'" <<<"$recent_logs"; then
-        record "FAIL app $app crashed because storage-api could not find ./migrations/tenant. The app must start from /app so relative migration paths resolve."
-        printf '%s\n' "$app_status" | tee -a "$report_file"
-        printf '%s\n' "$recent_logs" >"$log_dir/cf-logs-recent-$app-missing-storage-migrations.txt"
-        exit 1
-      fi
-      if grep -Fq 'out of memory' <<<"$recent_logs"; then
-        record "FAIL app $app crashed because Cloud Foundry killed it for exceeding its memory limit. Increase that app's Terraform memory setting."
-        printf '%s\n' "$app_status" | tee -a "$report_file"
-        printf '%s\n' "$recent_logs" >"$log_dir/cf-logs-recent-$app-oom.txt"
-        exit 1
-      fi
-    fi
-
-    if (( SECONDS >= deadline )); then
-      recent_logs="$(cf logs "$app" --recent 2>&1 || true)"
-      record "FAIL app $app did not start within ${timeout_seconds}s"
-      if grep -Eq 'Listening on port 8080' <<<"$recent_logs" && grep -Eq 'failed to make TCP connection to .*:3000' <<<"$recent_logs"; then
-        record "FAIL app $app is listening on 8080, but Cloud Foundry is health-checking port 3000. Rebuild and publish the scanned image so its Docker metadata exposes port 8080."
-      fi
-      printf '%s\n' "$app_status" | tee -a "$report_file"
-      printf '%s\n' "$recent_logs" >"$log_dir/cf-logs-recent-$app-timeout.txt"
-      exit 1
-    fi
-
-    sleep 10
-  done
-done
+if [[ "$skip_apply" == "1" ]]; then
+  record "CG_SKIP_APPLY=1: checking the current deployment without staged scaling."
+  wait_for_apps existing "${apps[@]}"
+else
+  record "Stage 1: core APIs without Studio (896 MB total)."
+  write_var_file core 1 256M 1 128M 1 256M 1 128M 1 128M 0 640M
+  run_apply core
+  wait_for_apps core "${core_apps[@]}"
+fi
 
 api_url="$(terraform -chdir="$repo_root" output -raw api_url)"
 dashboard_username="$(terraform -chdir="$repo_root" output -raw dashboard_username)"
@@ -423,12 +479,23 @@ check_http() {
 }
 
 record ""
-record "Checking public endpoints at $api_url..."
+record "Checking core public endpoints at $api_url..."
 check_http "Kong gateway" "$api_url/" '^401$'
-# Studio may redirect unauthenticated browser flows after Kong basic-auth succeeds.
-check_http "Studio through Kong basic-auth" "$api_url/" '^(200|301|302|303|307|308)$' --user "$dashboard_username:$dashboard_password"
 check_http "Auth health through Kong" "$api_url/auth/v1/health" '^200$' --header "apikey: $anon_key"
 check_http "REST route through Kong" "$api_url/rest/v1/" '^(200|300|404)$' --header "apikey: $anon_key" --header "Authorization: Bearer $anon_key"
 check_http "Storage status through Kong" "$api_url/storage/v1/status" '^200$'
+
+if [[ "$skip_apply" != "1" ]]; then
+  record ""
+  record "Stage 2: Studio with API gateway, REST, and pg-meta kept up (1,024 MB total)."
+  write_var_file studio 1 128M 0 128M 1 128M 1 128M 0 128M 1 640M
+  run_apply studio
+  wait_for_apps studio "${studio_apps[@]}"
+fi
+
+record ""
+record "Checking Studio public endpoint at $api_url..."
+# Studio may redirect unauthenticated browser flows after Kong basic-auth succeeds.
+check_http "Studio through Kong basic-auth" "$api_url/" '^(200|301|302|303|307|308)$' --user "$dashboard_username:$dashboard_password"
 
 smoke_checks_passed=1
