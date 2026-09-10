@@ -59,6 +59,7 @@ $$;
 -- ---------------------------------------------------------------------------
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE SCHEMA IF NOT EXISTS storage;
+CREATE SCHEMA IF NOT EXISTS graphql_public;
 CREATE SCHEMA IF NOT EXISTS _realtime;
 CREATE SCHEMA IF NOT EXISTS extensions;
 
@@ -78,6 +79,13 @@ GRANT ALL ON ALL TABLES IN SCHEMA storage TO postgres, anon, authenticated, serv
 GRANT ALL ON ALL SEQUENCES IN SCHEMA storage TO postgres, anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA storage GRANT ALL ON TABLES TO postgres, anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA storage GRANT ALL ON SEQUENCES TO postgres, anon, authenticated, service_role;
+
+-- Permissions on graphql_public
+GRANT USAGE ON SCHEMA graphql_public TO postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA graphql_public TO postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA graphql_public TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA graphql_public GRANT ALL ON TABLES TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA graphql_public GRANT ALL ON SEQUENCES TO postgres, anon, authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
 -- GoTrue: pre-create auth.schema_migrations
