@@ -30,8 +30,9 @@ Configuration:
   CG_TF_LOG=DEBUG              Optional Terraform log level. Logs may contain secrets.
 
 The smoke test runs in stages to fit the 1 GB cloud.gov sandbox quota: core
-APIs run first with Studio scaled to zero, then Studio runs with the API gateway,
-REST, and pg-meta left up. Terraform state and provider metadata are isolated
+APIs run first with Studio scaled to zero; then a pre-scale apply frees memory
+before Studio starts with the API gateway, REST, and pg-meta left up. Terraform
+state and provider metadata are isolated
 under .cloudgov-smoke.tfstate and .cloudgov-smoke.terraform and are deleted
 after successful cleanup.
 USAGE
@@ -487,7 +488,13 @@ check_http "Storage status through Kong" "$api_url/storage/v1/status" '^200$'
 
 if [[ "$skip_apply" != "1" ]]; then
   record ""
-  record "Stage 2: Studio with API gateway, REST, and pg-meta kept up (1,024 MB total)."
+  record "Stage 2a: free memory before starting Studio (384 MB total)."
+  write_var_file studio-prep 1 128M 0 128M 1 128M 1 128M 0 128M 0 640M
+  run_apply studio-prep
+  wait_for_apps studio-prep supabase-api supabase-meta supabase-rest
+
+  record ""
+  record "Stage 2b: start Studio with API gateway, REST, and pg-meta kept up (1,024 MB total)."
   write_var_file studio 1 128M 0 128M 1 128M 1 128M 0 128M 1 640M
   run_apply studio
   wait_for_apps studio "${studio_apps[@]}"
