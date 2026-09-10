@@ -76,6 +76,8 @@ jobs:
             safe_ref=$(printf '%s' "${{ github.ref_name }}" | tr '/_' '--' | tr -cd '[:alnum:].-')
             echo "IMAGE_TAG=pr-$safe_ref" >> "$GITHUB_ENV"
           fi
+          platform_suffix="${{ matrix.platform }}"
+          echo "PLATFORM_TAG=${platform_suffix##*/}" >> "$GITHUB_ENV"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -93,7 +95,7 @@ jobs:
               -t "cg-supabase-${{ matrix.image.short-name }}:scan" \
               .
           else
-            docker pull ${{ matrix.image.name }}
+            docker pull --platform ${{ matrix.platform }} ${{ matrix.image.name }}
             docker tag ${{ matrix.image.name }} "cg-supabase-${{ matrix.image.short-name }}:scan"
           fi
 
@@ -118,10 +120,12 @@ jobs:
       - name: Tag Image
         if: matrix.image.scan == true
         run: |
-          date=$(date +%Y%m%d)
-          docker tag cg-supabase-${{ matrix.image.short-name }}:scan ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:latest
-          docker tag cg-supabase-${{ matrix.image.short-name }}:scan ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:${{ env.IMAGE_TAG }}
-          docker tag cg-supabase-${{ matrix.image.short-name }}:scan ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:$date
+          date=$(date -u -d "${{ github.run_started_at }}" +%Y%m%d)
+          docker tag cg-supabase-${{ matrix.image.short-name }}:scan ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:${{ env.IMAGE_TAG }}-${{ env.PLATFORM_TAG }}
+          docker tag cg-supabase-${{ matrix.image.short-name }}:scan ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:$date-${{ env.PLATFORM_TAG }}
+          if [ "${{ github.ref_name }}" = "${{ github.event.repository.default_branch }}" ]; then
+            docker tag cg-supabase-${{ matrix.image.short-name }}:scan ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:latest-${{ env.PLATFORM_TAG }}
+          fi
 
       - name: Login to GitHub Container Registry
         if: matrix.image.scan == true
@@ -133,4 +137,79 @@ jobs:
 
       - name: Push Image
         if: matrix.image.scan == true
-        run: docker push --all-tags ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}
+        run: |
+          date=$(date -u -d "${{ github.run_started_at }}" +%Y%m%d)
+          docker push ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:${{ env.IMAGE_TAG }}-${{ env.PLATFORM_TAG }}
+          docker push ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:$date-${{ env.PLATFORM_TAG }}
+          if [ "${{ github.ref_name }}" = "${{ github.event.repository.default_branch }}" ]; then
+            docker push ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:latest-${{ env.PLATFORM_TAG }}
+          fi
+
+  publish-manifests:
+    runs-on: ubuntu-latest
+    needs: pull-scan-push
+    permissions:
+      packages: write
+    env:
+      GH_REPO: gsa-tts/cg-supabase
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - short-name: studio
+          - short-name: kong
+          - short-name: auth
+          - short-name: rest
+          - short-name: realtime
+          - short-name: storage
+          - short-name: imgproxy
+          - short-name: meta
+          - short-name: functions
+          - short-name: analytics
+          - short-name: postgres
+          - short-name: vector
+          - short-name: pooler
+          - short-name: mail
+
+    name: Publish manifest for ${{ matrix.image.short-name }}
+    steps:
+      - name: Set image tag
+        run: |
+          if [ "${{ github.ref_name }}" = "${{ github.event.repository.default_branch }}" ]; then
+            echo "IMAGE_TAG=scanned" >> "$GITHUB_ENV"
+          else
+            safe_ref=$(printf '%s' "${{ github.ref_name }}" | tr '/_' '--' | tr -cd '[:alnum:].-')
+            echo "IMAGE_TAG=pr-$safe_ref" >> "$GITHUB_ENV"
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish multi-architecture manifest
+        run: |
+          date=$(date -u -d "${{ github.run_started_at }}" +%Y%m%d)
+          image="ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}"
+
+          docker buildx imagetools create \
+            -t "$image:${{ env.IMAGE_TAG }}" \
+            "$image:${{ env.IMAGE_TAG }}-amd64" \
+            "$image:${{ env.IMAGE_TAG }}-arm64"
+
+          docker buildx imagetools create \
+            -t "$image:$date" \
+            "$image:$date-amd64" \
+            "$image:$date-arm64"
+
+          if [ "${{ github.ref_name }}" = "${{ github.event.repository.default_branch }}" ]; then
+            docker buildx imagetools create \
+              -t "$image:latest" \
+              "$image:latest-amd64" \
+              "$image:latest-arm64"
+          fi

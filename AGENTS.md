@@ -106,3 +106,17 @@ Custom Dockerfiles in `.docker/` extend the upstream auth and studio images.
 ### Database Initialization
 
 SQL init scripts live in `docker/volumes/db/` and run automatically on first container start. Kong config is in `docker/volumes/api/`.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs are tracked in GitHub Issues for `GSA-TTS/cg-supabase`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the default Matt Pocock skill label vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repo: use root `CONTEXT.md` when present and root `docs/adr/` for ADRs. See `docs/agents/domain.md`.

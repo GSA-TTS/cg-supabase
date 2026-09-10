@@ -364,6 +364,16 @@ for app in "${apps[@]}"; do
       break
     fi
 
+    if grep -Eiq 'crashed|crash' <<<"$app_status"; then
+      recent_logs="$(cf logs "$app" --recent 2>&1 || true)"
+      if grep -Fq 'exec format error' <<<"$recent_logs"; then
+        record "FAIL app $app crashed with exec format error. The deployed image likely does not match cloud.gov's amd64 runtime architecture; rebuild and publish the multi-arch image tag."
+        printf '%s\n' "$app_status" | tee -a "$report_file"
+        printf '%s\n' "$recent_logs" >"$log_dir/cf-logs-recent-$app-exec-format-error.txt"
+        exit 1
+      fi
+    fi
+
     if (( SECONDS >= deadline )); then
       recent_logs="$(cf logs "$app" --recent 2>&1 || true)"
       record "FAIL app $app did not start within ${timeout_seconds}s"
