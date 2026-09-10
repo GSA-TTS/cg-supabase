@@ -87,6 +87,8 @@ resource "cloudfoundry_app" "supabase-studio" {
     POSTGRES_PASSWORD        = local.studio_db_credentials.password
 
     NEXT_PUBLIC_ENABLE_LOGS = "true"
+    NEXT_TELEMETRY_DISABLED = "1"
+    NODE_OPTIONS            = "--max-old-space-size=384"
     # "postgres" causes Studio to make additional direct DB connections for analytics
     # (also without SSL), which fail against cloud.gov RDS. "bigquery" disables that path.
     NEXT_ANALYTICS_BACKEND_PROVIDER = "bigquery"

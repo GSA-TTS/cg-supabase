@@ -164,5 +164,5 @@ variable "studio_instances" {
 variable "studio_memory" {
   type        = string
   description = "the memory limit in megabytes for each studio application instance"
-  default     = "512M"
+  default     = "640M"
 }

@@ -29,9 +29,9 @@ Configuration:
   CG_IMAGE_TAG=pr-<branch>     GHCR image tag to deploy. Defaults to current branch tag.
   CG_TF_LOG=DEBUG              Optional Terraform log level. Logs may contain secrets.
 
-The generated var-file forces one instance per app and 1,280 MB total app memory
-(256 MB Kong + 512 MB Studio + 128 MB each for auth/meta/rest/storage) for a
-sandbox smoke test. Terraform state and provider metadata are isolated
+The generated var-file forces one instance per app and 1,024 MB total app memory
+(640 MB Studio + 128 MB Kong + 64 MB each for auth/meta/rest/storage) to fit the
+1 GB cloud.gov sandbox quota. Terraform state and provider metadata are isolated
 under .cloudgov-smoke.tfstate and .cloudgov-smoke.terraform and are deleted
 after successful cleanup.
 USAGE
@@ -308,17 +308,17 @@ database_service_instance_name = "$database_service_name"
 s3_service_instance_name       = "$s3_service_name"
 
 api_instances     = 1
-api_memory        = "256M"
+api_memory        = "128M"
 auth_instances    = 1
-auth_memory       = "128M"
+auth_memory       = "64M"
 meta_instances    = 1
-meta_memory       = "128M"
+meta_memory       = "64M"
 rest_instances    = 1
-rest_memory       = "128M"
+rest_memory       = "64M"
 storage_instances = 1
-storage_memory    = "128M"
+storage_memory    = "64M"
 studio_instances  = 1
-studio_memory     = "512M"
+studio_memory     = "640M"
 VARS
 
 record "cloud.gov Supabase smoke test"
@@ -327,7 +327,7 @@ record "Space: $cf_space"
 record "RDS service: $database_service_name ($database_plan)"
 record "S3 service: $s3_service_name ($s3_plan)"
 record "Image tag: $image_tag"
-record "Sandbox app memory: 1,280 MB total"
+record "Sandbox app memory: 1,024 MB total"
 record ""
 
 if [[ "$skip_apply" != "1" ]]; then

@@ -107,8 +107,8 @@ variable "studio_instances" {
 
 variable "studio_memory" {
   type        = string
-  description = "the memory limit in megabytes for each studio instance (default: 512)"
-  default     = "512M"
+  description = "the memory limit in megabytes for each studio instance (default: 640)"
+  default     = "640M"
 }
 
 variable "jwt_secret" {
