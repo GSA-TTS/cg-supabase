@@ -372,6 +372,12 @@ for app in "${apps[@]}"; do
         printf '%s\n' "$recent_logs" >"$log_dir/cf-logs-recent-$app-exec-format-error.txt"
         exit 1
       fi
+      if grep -Fq "scandir './migrations/tenant'" <<<"$recent_logs"; then
+        record "FAIL app $app crashed because storage-api could not find ./migrations/tenant. The app must start from /app so relative migration paths resolve."
+        printf '%s\n' "$app_status" | tee -a "$report_file"
+        printf '%s\n' "$recent_logs" >"$log_dir/cf-logs-recent-$app-missing-storage-migrations.txt"
+        exit 1
+      fi
     fi
 
     if (( SECONDS >= deadline )); then

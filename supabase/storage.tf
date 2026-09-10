@@ -73,6 +73,7 @@ resource "cloudfoundry_app" "supabase-storage" {
 
   command = <<-CMD
     ${local.rds_ca_setup}
+    cd /app
     export SERVER_PORT="$PORT"
     exec docker-entrypoint.sh node /app/dist/start/server.js
   CMD

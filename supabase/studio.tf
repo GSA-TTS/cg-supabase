@@ -42,6 +42,7 @@ resource "cloudfoundry_app" "supabase-studio" {
 
   command = <<-CMD
     ${local.rds_ca_setup}
+    cd /app
     export STUDIO_PORT="$PORT"
     exec /usr/local/bin/docker-entrypoint.sh node /app/apps/studio/server.js
   CMD
