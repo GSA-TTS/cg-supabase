@@ -1,23 +1,26 @@
 locals {
-  # TODO: Parameterize which image to use, with this as the default
-  # TODO: Once Supabase publishes an image without CRITICAL and HIGH findings,
-  #    switch to ghcr.io/gsa-tts/cg-supabase/studio:scanned
-  studio_image             = "ghcr.io/gsa-tts/cg-supabase/studio"
-  studio_image_tag         = "scanned"
-  studio_url               = "https://${cloudfoundry_route.supabase-studio.endpoint}:61443"
-  studio_connection_string = "${cloudfoundry_service_key.studio.credentials.uri}?sslmode=require"
-
+  studio_image          = "ghcr.io/gsa-tts/cg-supabase/studio"
+  studio_image_tag      = var.image_tag
+  studio_url            = "https://supabase-studio${local.slug}.apps.internal:61443"
+  studio_db_credentials = jsondecode(cloudfoundry_service_credential_binding.studio.credential_binding).credentials
 }
 
 resource "cloudfoundry_route" "supabase-studio" {
-  space    = data.cloudfoundry_space.apps.id
-  domain   = data.cloudfoundry_domain.private.id
-  hostname = "supabase-studio${local.slug}"
+  space  = data.cloudfoundry_space.apps.id
+  domain = data.cloudfoundry_domain.private.id
+  host   = "supabase-studio${local.slug}"
+  destinations = [
+    {
+      app_id = cloudfoundry_app.supabase-studio.id
+      port   = 8080
+    }
+  ]
 }
 
-resource "cloudfoundry_service_key" "studio" {
+resource "cloudfoundry_service_credential_binding" "studio" {
+  type             = "key"
   name             = "studio"
-  service_instance = module.database.instance_id
+  service_instance = local.database_service_instance_id
 }
 
 data "docker_registry_image" "studio" {
@@ -26,61 +29,95 @@ data "docker_registry_image" "studio" {
 
 resource "cloudfoundry_app" "supabase-studio" {
   name         = local.studio_app_name
-  space        = data.cloudfoundry_space.apps.id
+  org_name     = local.cf_org_name
+  space_name   = local.cf_space_name
   docker_image = "${local.studio_image}@${data.docker_registry_image.studio.sha256_digest}"
   timeout      = 180
   memory       = var.studio_memory
-  disk_quota   = 1024
+  disk_quota   = "2048M"
   instances    = var.studio_instances
-  strategy     = "rolling"
-  routes {
-    route = cloudfoundry_route.supabase-studio.id
-  }
-  health_check_type          = "http"
-  health_check_http_endpoint = "/api/profile"
+  strategy     = "none"
 
-  command = <<-EOT
-    # Make sure the Cloud Foundry-provided CA is recognized when making TLS connections
-    cat /etc/cf-system-certificates/* > /usr/local/share/ca-certificates/cf-system-certificates.crt
-    /usr/sbin/update-ca-certificates
-    # Now call the expected ENTRYPOINT and CMD
-    /usr/local/bin/docker-entrypoint.sh node /app/apps/studio/server.js
-    EOT
+  health_check_type = "port"
+
+  command = <<-CMD
+    ${local.rds_ca_setup}
+    cd /app
+    export STUDIO_PORT="$PORT"
+    exec /usr/local/bin/docker-entrypoint.sh node /app/apps/studio/server.js
+  CMD
+
   environment = {
-    # Upstream docs: https://github.com/supabase/supabase/blob/master/apps/studio/.env
+    # https://github.com/supabase/supabase/blob/master/apps/studio/.env
 
-    # TODO: Move the secrets into a bound UPSI, and parse them out of
-    # VCAP_SERVICES with jq at startup
+    HOSTNAME = "0.0.0.0"
+    # Studio reads STUDIO_PORT; the start command maps platform-owned PORT to it.
+    DEFAULT_ORGANIZATION_NAME = "Default Organization"
+    DEFAULT_PROJECT_NAME      = "Default Project"
 
-    PGRST_DB_URI : local.rest_connection_string
-    POSTGRES_PASSWORD : cloudfoundry_service_key.storage.credentials.password
-    PGRST_JWT_SECRET : var.jwt_secret
+    # SUPABASE_URL: used by Studio server (SSR) — calls PostgREST directly via internal route.
+    # SUPABASE_PUBLIC_URL: exposed to the browser — must be the public Kong API gateway URL.
+    SUPABASE_URL        = local.rest_url
+    SUPABASE_PUBLIC_URL = local.api_url
+    STUDIO_PG_META_URL  = local.meta_url
 
-    PGRST_DB_SCHEMAS : "public,storage,graphql_public"
-    PGRST_DB_ANON_ROLE : "anon"
-    PGRST_DB_MAX_ROWS : "20000"
+    SUPABASE_ANON_KEY    = local.effective_anon_key
+    SUPABASE_SERVICE_KEY = local.effective_service_role_key
+    AUTH_JWT_SECRET      = local.effective_jwt_secret
+    RDS_CA_BUNDLE_PEM    = local.rds_ca_bundle_pem
 
-    STUDIO_PG_META_URL : local.meta_url
+    # Direct database connection for Studio's schema browser and SQL editor.
+    # Studio builds a PostgreSQL URL from these vars via string interpolation and sends
+    # it (AES-encrypted) to pg-meta in an x-connection-encrypted header. pg-meta opens
+    # a per-request connection pool from the decrypted URL.
+    #
+    # SSL must be embedded in POSTGRES_DB as a query parameter — there is no
+    # POSTGRES_SSLMODE env var and no other injection point on this code path.
+    # Studio sends the encrypted connection string to pg-meta, which opens a
+    # per-request pool. Certificate validation uses NODE_EXTRA_CA_CERTS from
+    # the startup CA bootstrap on both Studio and pg-meta processes.
+    #
+    # All POSTGRES_* vars must be set: if POSTGRES_HOST is absent Studio falls back to
+    # hostname "db" (Docker Compose default) and pg-meta returns ENOTFOUND.
+    POSTGRES_HOST            = local.studio_db_credentials.host
+    POSTGRES_PORT            = tostring(local.studio_db_credentials.port)
+    POSTGRES_DB              = "${local.studio_db_credentials.db_name}?sslmode=require"
+    POSTGRES_USER_READ_WRITE = local.studio_db_credentials.username
+    POSTGRES_USER_READ_ONLY  = local.studio_db_credentials.username
+    POSTGRES_PASSWORD        = local.studio_db_credentials.password
 
-    DEFAULT_ORGANIZATION_NAME : "Default Organization"
-    DEFAULT_PROJECT_NAME : "Default Project"
-
-    SUPABASE_URL : local.studio_url
-    SUPABASE_PUBLIC_URL : local.studio_url
-    SUPABASE_ANON_KEY : var.anon_key
-    SUPABASE_SERVICE_KEY : var.service_role_key
-
-    LOGFLARE_API_KEY : var.logflare_api_key
-    LOGFLARE_URL : "http://analytics:4000"
-    NEXT_PUBLIC_ENABLE_LOGS : "true"
-    NEXT_ANALYTICS_BACKEND_PROVIDER : "postgres"
+    NEXT_PUBLIC_ENABLE_LOGS = "true"
+    NEXT_TELEMETRY_DISABLED = "1"
+    NODE_OPTIONS            = "--max-old-space-size=384"
+    # "postgres" causes Studio to make additional direct DB connections for analytics
+    # (also without SSL), which fail against cloud.gov RDS. "bigquery" disables that path.
+    NEXT_ANALYTICS_BACKEND_PROVIDER = "bigquery"
   }
+
+  depends_on = [
+    cloudfoundry_service_credential_binding.studio,
+    cloudfoundry_service_credential_binding.s3,
+  ]
 }
 
+# Studio needs to reach PostgREST directly (server-side API calls via SUPABASE_URL)
+resource "cloudfoundry_network_policy" "studio-rest" {
+  policies = [
+    {
+      source_app      = cloudfoundry_app.supabase-studio.id
+      destination_app = cloudfoundry_app.supabase-rest.id
+      port            = "61443"
+    }
+  ]
+}
+
+# Studio needs to reach pg-meta for the schema browser
 resource "cloudfoundry_network_policy" "studio-meta" {
-  policy {
-    source_app      = cloudfoundry_app.supabase-studio.id
-    destination_app = cloudfoundry_app.supabase-meta.id
-    port            = "61443"
-  }
+  policies = [
+    {
+      source_app      = cloudfoundry_app.supabase-studio.id
+      destination_app = cloudfoundry_app.supabase-meta.id
+      port            = "61443"
+    }
+  ]
 }

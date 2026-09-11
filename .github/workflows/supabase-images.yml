@@ -20,43 +20,43 @@ jobs:
         platform: [linux/amd64, linux/arm64]
         image:
           # Core Supabase services (matching docker-compose.yml versions)
-          - name: supabase/studio:2025.06.30-sha-6f5982d
+          - name: supabase/studio:2026.09.07-sha-7996410
             short-name: studio
             scan: true
-          - name: kong:2.8.1
+          - name: kong/kong:3.9.3
             short-name: kong
             scan: true
-          - name: supabase/gotrue:v2.177.0
+          - name: supabase/gotrue:v2.196.0
             short-name: auth
             scan: true
-          - name: postgrest/postgrest:v12.2.12
+          - name: postgrest/postgrest:v14.17
             short-name: rest
             scan: true
-          - name: supabase/realtime:v2.34.47
+          - name: supabase/realtime:v2.134.12
             short-name: realtime
             scan: true
-          - name: supabase/storage-api:v1.25.7
+          - name: supabase/storage-api:v1.74.0
             short-name: storage
             scan: true
-          - name: darthsim/imgproxy:v3.8.0
+          - name: darthsim/imgproxy:v3.31.4
             short-name: imgproxy
             scan: true
-          - name: supabase/postgres-meta:v0.91.0
+          - name: supabase/postgres-meta:v0.99.0
             short-name: meta
             scan: true
-          - name: supabase/edge-runtime:v1.67.4
+          - name: supabase/edge-runtime:v1.76.2
             short-name: functions
             scan: true
-          - name: supabase/logflare:1.14.2
+          - name: supabase/logflare:1.50.10
             short-name: analytics
             scan: true
-          - name: supabase/postgres:15.8.1.060
+          - name: supabase/postgres:17.6.1.169
             short-name: postgres
             scan: true
-          - name: timberio/vector:0.28.1-alpine
+          - name: timberio/vector:0.53.0-alpine
             short-name: vector
             scan: true
-          - name: supabase/supavisor:2.5.7
+          - name: supabase/supavisor:2.9.12
             short-name: pooler
             scan: true
           - name: inbucket/inbucket:3.0.3
@@ -66,23 +66,45 @@ jobs:
     name: Process ${{ matrix.image.short-name }} on ${{ matrix.platform }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+
+      - name: Set image tag
+        run: |
+          if [ "${{ github.ref_name }}" = "${{ github.event.repository.default_branch }}" ]; then
+            echo "IMAGE_TAG=scanned" >> "$GITHUB_ENV"
+          else
+            safe_ref=$(printf '%s' "${{ github.ref_name }}" | tr '/_' '--' | tr -cd '[:alnum:].-')
+            echo "IMAGE_TAG=pr-$safe_ref" >> "$GITHUB_ENV"
+          fi
+          platform_suffix="${{ matrix.platform }}"
+          echo "PLATFORM_TAG=${platform_suffix##*/}" >> "$GITHUB_ENV"
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
         with:
           platforms: ${{ matrix.platform }}
 
-      - name: Pull Docker Image
+      - name: Pull or build Docker Image
         if: matrix.image.scan == true
-        run: docker pull ${{ matrix.image.name }}
+        run: |
+          if [ -f ".docker/${{ matrix.image.short-name }}.Dockerfile" ]; then
+            docker buildx build \
+              --platform ${{ matrix.platform }} \
+              --load \
+              -f ".docker/${{ matrix.image.short-name }}.Dockerfile" \
+              -t "cg-supabase-${{ matrix.image.short-name }}:scan" \
+              .
+          else
+            docker pull --platform ${{ matrix.platform }} ${{ matrix.image.name }}
+            docker tag ${{ matrix.image.name }} "cg-supabase-${{ matrix.image.short-name }}:scan"
+          fi
 
       - name: Scan Image
         if: matrix.image.scan == true
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: 'image'
-          image-ref: ${{ matrix.image.name }}
+          image-ref: cg-supabase-${{ matrix.image.short-name }}:scan
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
@@ -98,14 +120,16 @@ jobs:
       - name: Tag Image
         if: matrix.image.scan == true
         run: |
-          date=$(date +%Y%m%d)
-          docker tag ${{ matrix.image.name }} ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:latest
-          docker tag ${{ matrix.image.name }} ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:scanned
-          docker tag ${{ matrix.image.name }} ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:$date
+          date=$(date -u -d "${{ github.run_started_at }}" +%Y%m%d)
+          docker tag cg-supabase-${{ matrix.image.short-name }}:scan ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:${{ env.IMAGE_TAG }}-${{ env.PLATFORM_TAG }}
+          docker tag cg-supabase-${{ matrix.image.short-name }}:scan ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:$date-${{ env.PLATFORM_TAG }}
+          if [ "${{ github.ref_name }}" = "${{ github.event.repository.default_branch }}" ]; then
+            docker tag cg-supabase-${{ matrix.image.short-name }}:scan ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:latest-${{ env.PLATFORM_TAG }}
+          fi
 
       - name: Login to GitHub Container Registry
         if: matrix.image.scan == true
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -113,4 +137,79 @@ jobs:
 
       - name: Push Image
         if: matrix.image.scan == true
-        run: docker push --all-tags ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}
+        run: |
+          date=$(date -u -d "${{ github.run_started_at }}" +%Y%m%d)
+          docker push ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:${{ env.IMAGE_TAG }}-${{ env.PLATFORM_TAG }}
+          docker push ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:$date-${{ env.PLATFORM_TAG }}
+          if [ "${{ github.ref_name }}" = "${{ github.event.repository.default_branch }}" ]; then
+            docker push ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}:latest-${{ env.PLATFORM_TAG }}
+          fi
+
+  publish-manifests:
+    runs-on: ubuntu-latest
+    needs: pull-scan-push
+    permissions:
+      packages: write
+    env:
+      GH_REPO: gsa-tts/cg-supabase
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - short-name: studio
+          - short-name: kong
+          - short-name: auth
+          - short-name: rest
+          - short-name: realtime
+          - short-name: storage
+          - short-name: imgproxy
+          - short-name: meta
+          - short-name: functions
+          - short-name: analytics
+          - short-name: postgres
+          - short-name: vector
+          - short-name: pooler
+          - short-name: mail
+
+    name: Publish manifest for ${{ matrix.image.short-name }}
+    steps:
+      - name: Set image tag
+        run: |
+          if [ "${{ github.ref_name }}" = "${{ github.event.repository.default_branch }}" ]; then
+            echo "IMAGE_TAG=scanned" >> "$GITHUB_ENV"
+          else
+            safe_ref=$(printf '%s' "${{ github.ref_name }}" | tr '/_' '--' | tr -cd '[:alnum:].-')
+            echo "IMAGE_TAG=pr-$safe_ref" >> "$GITHUB_ENV"
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish multi-architecture manifest
+        run: |
+          date=$(date -u -d "${{ github.run_started_at }}" +%Y%m%d)
+          image="ghcr.io/${{ env.GH_REPO }}/${{ matrix.image.short-name }}"
+
+          docker buildx imagetools create \
+            -t "$image:${{ env.IMAGE_TAG }}" \
+            "$image:${{ env.IMAGE_TAG }}-amd64" \
+            "$image:${{ env.IMAGE_TAG }}-arm64"
+
+          docker buildx imagetools create \
+            -t "$image:$date" \
+            "$image:$date-amd64" \
+            "$image:$date-arm64"
+
+          if [ "${{ github.ref_name }}" = "${{ github.event.repository.default_branch }}" ]; then
+            docker buildx imagetools create \
+              -t "$image:latest" \
+              "$image:latest-amd64" \
+              "$image:latest-arm64"
+          fi

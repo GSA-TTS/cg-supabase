@@ -2,8 +2,8 @@ terraform {
   required_version = "~> 1.0"
   required_providers {
     cloudfoundry = {
-      source  = "cloudfoundry-community/cloudfoundry"
-      version = "~>0.53.1"
+      source  = "cloudfoundry/cloudfoundry"
+      version = "~> 1.18.0"
     }
 
     docker = {
@@ -11,9 +11,14 @@ terraform {
       version = "~>3.0.2"
     }
 
-    github = {
-      source  = "integrations/github"
-      version = "~>6.2"
+    jwt = {
+      source  = "camptocamp/jwt"
+      version = "~>1.1"
+    }
+
+    random = {
+      source  = "hashicorp/random"
+      version = ">= 3.0"
     }
   }
 }

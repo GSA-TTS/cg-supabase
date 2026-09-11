@@ -1,20 +1,28 @@
 locals {
-  # TODO: Parameterize which image to use, with this as the default
-  rest_image             = "ghcr.io/gsa-tts/cg-supabase/rest"
-  rest_image_tag         = "scanned"
-  rest_url               = "https://${cloudfoundry_route.supabase-rest.endpoint}:61443"
-  rest_connection_string = "${cloudfoundry_service_key.rest.credentials.uri}?sslmode=require"
+  rest_image          = "ghcr.io/gsa-tts/cg-supabase/rest"
+  rest_image_tag      = var.image_tag
+  rest_url            = "https://supabase-rest${local.slug}.apps.internal:61443"
+  rest_db_credentials = jsondecode(cloudfoundry_service_credential_binding.rest.credential_binding).credentials
+  # PostgREST is a Go service — sslmode=prefer encrypts without requiring cert validation
+  rest_connection_string = "${local.rest_db_credentials.uri}?sslmode=prefer"
 }
 
 resource "cloudfoundry_route" "supabase-rest" {
-  space    = data.cloudfoundry_space.apps.id
-  domain   = data.cloudfoundry_domain.private.id
-  hostname = "supabase-rest${local.slug}"
+  space  = data.cloudfoundry_space.apps.id
+  domain = data.cloudfoundry_domain.private.id
+  host   = "supabase-rest${local.slug}"
+  destinations = [
+    {
+      app_id = cloudfoundry_app.supabase-rest.id
+      port   = 8080
+    }
+  ]
 }
 
-resource "cloudfoundry_service_key" "rest" {
+resource "cloudfoundry_service_credential_binding" "rest" {
+  type             = "key"
   name             = "rest"
-  service_instance = module.database.instance_id
+  service_instance = local.database_service_instance_id
 }
 
 data "docker_registry_image" "rest" {
@@ -23,27 +31,30 @@ data "docker_registry_image" "rest" {
 
 resource "cloudfoundry_app" "supabase-rest" {
   name         = local.rest_app_name
-  space        = data.cloudfoundry_space.apps.id
+  org_name     = local.cf_org_name
+  space_name   = local.cf_space_name
   docker_image = "${local.rest_image}@${data.docker_registry_image.rest.sha256_digest}"
   timeout      = 180
   memory       = var.rest_memory
-  disk_quota   = 256
+  disk_quota   = "256M"
   instances    = var.rest_instances
-  strategy     = "rolling"
-  routes {
-    route = cloudfoundry_route.supabase-rest.id
-  }
+  strategy     = "none"
+
+  health_check_type = "port"
 
   environment = {
-    # Upstream docs: https://postgrest.org/en/v12/references/configuration.html
-
-    # TODO: Move the secrets into a bound UPSI, and parse them out of
-    # VCAP_SERVICES with jq at startup
-    PGRST_DB_URI : local.rest_connection_string
-    PGRST_JWT_SECRET : var.jwt_secret
-
-    PGRST_DB_SCHEMAS : "public,storage,graphql_public"
-    PGRST_DB_ANON_ROLE : "anon"
-    PGRST_DB_MAX_ROWS : 20000
+    # https://postgrest.org/en/v12/references/configuration.html
+    PGRST_DB_URI             = local.rest_connection_string
+    PGRST_DB_SCHEMAS         = "public,storage,graphql_public"
+    PGRST_DB_ANON_ROLE       = "anon"
+    PGRST_DB_USE_LEGACY_GUCS = "false"
+    PGRST_DB_MAX_ROWS        = "20000"
+    PGRST_JWT_SECRET         = local.effective_jwt_secret
+    PGRST_SERVER_PORT        = "8080"
   }
+
+  depends_on = [
+    cloudfoundry_service_credential_binding.rest,
+    cloudfoundry_app.supabase-meta, # schema init creates roles for SET ROLE
+  ]
 }

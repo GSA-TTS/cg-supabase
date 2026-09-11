@@ -1,21 +1,31 @@
 module "supabase" {
   source        = "./supabase"
-  cf_org_name   = "gsa-tts-oros-sorndashboard"
-  cf_space_name = "supabase"
+  cf_org_name   = var.cf_org_name
+  cf_space_name = var.cf_space_name
 
-  # TODO - Make use of injected proxy, logdrain, S3, and Postgres info
-  # https_proxy       = module.https-proxy.https_proxy
-  # s3_id             = module.s3-private.bucket_id
-  # logdrain_id       = module.cg-logshipper.logdrain_service_id
-
+  # JWT secrets are optional — omit to auto-generate, or provide to reuse existing values.
+  # See vars.auto.tfvars-example for the full set of configurable options.
   jwt_secret       = var.jwt_secret
   anon_key         = var.anon_key
   service_role_key = var.service_role_key
 
-  database_plan     = "micro-psql"
-  api_instances     = 1
-  meta_instances    = 1
-  rest_instances    = 1
-  storage_instances = 1
-  studio_instances  = 1
+  database_plan = var.database_plan
+  s3_plan_name  = var.s3_plan_name
+
+  database_service_instance_name = var.database_service_instance_name
+  s3_service_instance_name       = var.s3_service_instance_name
+  image_tag                      = var.image_tag
+
+  api_instances     = var.api_instances
+  api_memory        = var.api_memory
+  auth_instances    = var.auth_instances
+  auth_memory       = var.auth_memory
+  meta_instances    = var.meta_instances
+  meta_memory       = var.meta_memory
+  rest_instances    = var.rest_instances
+  rest_memory       = var.rest_memory
+  storage_instances = var.storage_instances
+  storage_memory    = var.storage_memory
+  studio_instances  = var.studio_instances
+  studio_memory     = var.studio_memory
 }

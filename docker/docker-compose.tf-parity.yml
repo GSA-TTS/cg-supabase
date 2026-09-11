@@ -19,7 +19,7 @@
 services:
   # API Gateway - Kong (matches terraform api.tf)
   kong:
-    image: kong:3.4
+    image: kong/kong:3.9.3
     container_name: supabase-kong
     restart: unless-stopped
     ports:
@@ -42,7 +42,7 @@ services:
 
   # Authentication Service - GoTrue (matches auth.tf)
   auth:
-    image: supabase/gotrue:v2.151.0
+    image: supabase/gotrue:v2.196.0
     container_name: supabase-auth
     depends_on:
       db:
@@ -78,7 +78,7 @@ services:
 
   # REST API - PostgREST (matches rest.tf)
   rest:
-    image: postgrest/postgrest:v12.0.2
+    image: postgrest/postgrest:v14.17
     container_name: supabase-rest
     depends_on:
       db:
@@ -98,7 +98,7 @@ services:
 
   # File Storage (matches storage.tf)
   storage:
-    image: supabase/storage-api:v1.0.6
+    image: supabase/storage-api:v1.74.0
     container_name: supabase-storage
     depends_on:
       db:
@@ -125,7 +125,7 @@ services:
 
   # Database metadata API (matches meta.tf)
   meta:
-    image: supabase/postgres-meta:v0.80.0
+    image: supabase/postgres-meta:v0.99.0
     container_name: supabase-meta
     depends_on:
       db:
@@ -141,7 +141,7 @@ services:
 
   # Studio - Dashboard UI (matches studio.tf)
   studio:
-    image: supabase/studio:20240729-ce42139
+    image: supabase/studio:2026.09.07-sha-7996410
     container_name: supabase-studio
     restart: unless-stopped
     depends_on:
@@ -166,7 +166,7 @@ services:
   # Note: In terraform setup this is managed by cloud.gov RDS
   # This is only for local development
   db:
-    image: supabase/postgres:15.1.0.147
+    image: supabase/postgres:17.6.1.169
     container_name: supabase-db
     healthcheck:
       test: pg_isready -U postgres -h localhost

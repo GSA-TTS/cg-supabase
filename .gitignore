@@ -7,7 +7,13 @@
 **/*.tfstate.backup
 **/*.tfstate.*.backup
 **/*.tfvars
+.cloudgov-smoke-report.txt
+.cloudgov-smoke-logs/
+.cloudgov-smoke.tfvars
+.cloudgov-smoke.tfstate
+.cloudgov-smoke.terraform/
+.cloudgov-smoke.tfstate.*
 supabase/kong/app.zip
 *.env
-/.docker
+# Dockerfiles in .docker are source files for GHCR image builds.
 /docker/volumes/db/data

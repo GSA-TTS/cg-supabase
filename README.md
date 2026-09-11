@@ -13,76 +13,103 @@ This module deploys Supabase on cloud.gov, providing a compliance- and productio
 ## Usage
 ```terraform
 module "supabase" {
-  source            = "../path/to/source"
-  cf_org_name       = var.cf_org_name
-  cf_space_name     = var.cf_space_name
-  https_proxy       = module.https-proxy.https_proxy
-  s3_id             = module.s3-private.bucket_id
-  logdrain_id       = module.cg-logshipper.logdrain_service_id
+  source        = "../path/to/source"
+  cf_org_name   = var.cf_org_name
+  cf_space_name = var.cf_space_name
 
-  jwt_secret       = var.jwt_secret
-  anon_key         = var.anon_key
-  service_role_key = var.service_role_key
+  # JWT secrets are optional — omit to auto-generate via camptocamp/jwt provider.
+  # jwt_secret       = var.jwt_secret
+  # anon_key         = var.anon_key
+  # service_role_key = var.service_role_key
 
-  database_plan         = "micro-psql"
-  rest_instances        = 1
-  storage_instances     = 1
-  disk_quota            = #
+  database_plan = "micro-psql"
+  s3_plan_name  = "basic"
+
+  api_instances     = 1
+  meta_instances    = 1
+  rest_instances    = 1
+  storage_instances = 1
+  studio_instances  = 1
 }
+```
+
+See `vars.auto.tfvars-example` for the full set of options, including service-account credentials, username/password credentials, or CF CLI config fallback after `cf login --sso`.
+
+After `terraform apply`, retrieve the auto-generated Studio password with:
+```bash
+terraform output -raw dashboard_password
 ```
 
 ## Deployment architecture
 
+All services run in a single Cloud Foundry space on cloud.gov.  Kong is the
+only publicly-routed app; backend services communicate over private CF internal
+routes (`apps.internal`) on port 61443. Cloud Foundry's platform-managed c2c TLS
+proxy maps port 61443 to app port 8080, so every backend service is configured
+to listen on 8080.
+
 ```mermaid
     C4Context
-      title Supabase on cloud.gov - blue items are managed by the module
-      
+      title Supabase on cloud.gov — all components managed by this module
+
       Boundary(cloudgov, "cloud.gov environment") {
-          Boundary(target_space, "target space") {
-            System(kong, "Kong API Gateway", "API gateway & auth")
-            System(rest, "PostgREST", "REST API server")
+          Boundary(target_space, "target CF space") {
+            System(kong, "Kong API Gateway", "Public entry point: key-auth, ACL, basic-auth")
+            System(auth, "GoTrue / Auth", "Authentication service")
+            System(rest, "PostgREST", "Auto-generated REST API")
             System(studio, "Supabase Studio", "Admin dashboard")
-            System(storage, "Supabase Storage", "File storage API")
-            System(postgres_meta, "Postgres Meta", "DB metadata API")
-            System(postgres_db, "PostgreSQL", "Primary database")
-            System(s3_bucket, "S3 Bucket", "File storage")
-          }
-          
-          Boundary(proxy_space, "proxy space") {
-            System(https_proxy, "HTTPS Proxy", "External connectivity")
+            System(storage, "Storage API", "File storage service")
+            System(meta, "Postgres Meta", "DB schema introspection")
+            System(postgres_db, "PostgreSQL (RDS)", "Primary database")
+            System(s3_bucket, "S3 Bucket", "Object storage")
           }
       }
-      
+
       Boundary(external, "External") {
         System_Ext(client_app, "Client Application", "Your application")
         System_Ext(admin_user, "Admin User", "Developer/Admin")
       }
 
       Rel(client_app, kong, "API requests", "HTTPS")
-      Rel(admin_user, studio, "Admin access", "HTTPS")
-      Rel(kong, rest, "Routes API calls")
-      Rel(kong, storage, "Routes storage calls")
-      Rel(kong, studio, "Routes admin calls")
+      Rel(admin_user, kong, "Dashboard (basic-auth)", "HTTPS")
+      Rel(kong, auth, "/auth/v1/*", "apps.internal:61443 -> app:8080")
+      Rel(kong, rest, "/rest/v1/*", "apps.internal:61443 -> app:8080")
+      Rel(kong, storage, "/storage/v1/*", "apps.internal:61443 -> app:8080")
+      Rel(kong, meta, "/pg/*", "apps.internal:61443 -> app:8080")
+      Rel(kong, studio, "/* (dashboard)", "apps.internal:61443 -> app:8080")
       Rel(rest, postgres_db, "Queries")
-      Rel(studio, postgres_meta, "Schema queries")
-      Rel(postgres_meta, postgres_db, "Metadata queries")
-      Rel(storage, s3_bucket, "File operations")
-      Rel(storage, postgres_db, "Metadata storage")
-      Rel(kong, https_proxy, "External requests")
+      Rel(auth, postgres_db, "Auth schema")
+      Rel(storage, postgres_db, "File metadata")
+      Rel(storage, s3_bucket, "File objects")
+      Rel(meta, postgres_db, "Schema introspection")
+      Rel(studio, rest, "SSR API calls", "apps.internal:61443 -> app:8080")
+      Rel(studio, meta, "Table editor", "apps.internal:61443 -> app:8080")
 ```
 
-1. Creates an egress proxy in the designated space
-2. Adds network-policies so that clients can reach the proxy
-3. Creates a user-provided service instance in the client space with credentials
+**Not deployed by this module** (require platform features unavailable on cloud.gov):
+| Service | Reason |
+|---|---|
+| Realtime | Hardcodes `inet6` socket options; cloud.gov containers lack IPv6 |
+| Edge Functions | Not in scope — would require a [cloud.gov egress proxy](https://github.com/GSA-TTS/terraform-cloudgov/tree/main/egress_proxy) for outbound HTTP requests |
+| Analytics / Logflare | Not in scope |
 
-## STATUS
+## Status
 
-- `rest`, `studio`, and `storage` are deploying
-    - `rest` seems to work fine
-    - `studio` runs without crashing, but gets errors whenever you try to run an SQL query
-        - This will probably work now that we have `postgres-meta` running, but we can't auth yet
-    - `storage` tries to run database migrations, but fails because there is no `postgres` role
-        - 👆 I think this is also why `studio` isn't working
+All six services (Kong, GoTrue, PostgREST, Studio, Storage, pg-meta) deploy
+and run on cloud.gov.  See `docs/pr-terraform-working-approach.md` for
+known limitations and the rationale behind each SSL workaround.
+
+## cloud.gov Smoke Test
+
+A user with access to a cloud.gov org/space can run one command to deploy this module with sandbox-safe sizing, verify the apps and public routes, print a PASS/FAIL report, and destroy the deployment by default:
+
+```bash
+CG_ORG=<org> CG_SPACE=<space> ./scripts/cloudgov_smoke_test.sh
+```
+
+For PR branches, first run the `Pull, scan, and push Supabase images` workflow on the branch. The workflow publishes branch-scoped GHCR tags like `pr-update-terraform`; the smoke test uses the current branch tag by default. Override with `CG_IMAGE_TAG=<tag>` when testing a different image tag.
+
+The smoke test sets one instance per app, 896 MB total app memory (256 MB Kong plus 128 MB each for auth, meta, rest, storage, and studio), RDS `micro-psql`, and S3 `basic-sandbox` so it fits and works in the default 1 GB cloud.gov sandbox quota. It creates/reuses those backing services with the `cf` CLI before running Terraform, avoiding a `cloudfoundry` provider v1.18.0 managed-service creation crash seen when cloud.gov omits `maintenance_info` from a service response. It also removes stale Terraform-managed backing-service resources from the isolated smoke-test state before apply. It uses isolated Terraform metadata under `.cloudgov-smoke.terraform` and local state at `.cloudgov-smoke.tfstate`, then destroys the deployment by default. If `CG_ORG` and `CG_SPACE` are omitted, the script uses the current `cf target`. If Terraform credentials are not set, the script passes the current `cf oauth-token` to the provider as `CF_ACCESS_TOKEN`. On failure, diagnostics are written under `.cloudgov-smoke-logs/`; set `CG_KEEP_ON_FAILURE=1` or `CG_KEEP_DEPLOYMENT=1` to leave resources running for manual inspection.
 
 ## Docker Compose Development Environment
 

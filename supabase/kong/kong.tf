@@ -9,16 +9,17 @@ data "external" "kongzip" {
 
 resource "cloudfoundry_app" "kong" {
   name             = var.name
-  space            = var.space
+  org_name         = var.org_name
+  space_name       = var.space_name
   buildpacks       = ["https://github.com/cloudfoundry/apt-buildpack", "binary_buildpack"]
   path             = "${path.module}/${data.external.kongzip.result.path}"
   source_code_hash = filesha256("${path.module}/${data.external.kongzip.result.path}")
   timeout          = 180
   memory           = var.memory
-  disk_quota       = 256
+  disk_quota       = "256M"
   instances        = var.instances
-  strategy         = "rolling"
-  command          = "./run.sh"
+  strategy         = "none"
+  command          = "bash run.sh"
   environment = {
     KONG_PLUGINS = var.kong_plugins
 
